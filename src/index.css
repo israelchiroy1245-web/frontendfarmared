@@ -49,38 +49,39 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --background: #f5f2ea;
+    --foreground: #1a2e2a;
+    --card: #ffffff;
+    --card-foreground: #1a2e2a;
+    --popover: #ffffff;
+    --popover-foreground: #1a2e2a;
+    --primary: #0f6b5c;
+    --primary-foreground: #f5faf8;
+    --secondary: #e4efe9;
+    --secondary-foreground: #12352f;
+    --muted: #ebe6db;
+    --muted-foreground: #6b736f;
+    --accent: #e4c65b;
+    --accent-foreground: #12352f;
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --border: #ddd4c4;
+    --input: #ddd4c4;
+    --ring: #0f6b5c;
+    --chart-1: #0f6b5c;
+    --chart-2: #556;
+    --chart-3: #439;
+    --chart-4: #371;
+    --chart-5: #269;
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    /* Sidebar FarmaRed — verde bosque del prototipo */
+    --sidebar: #12352f;
+    --sidebar-foreground: #eef4f2;
+    --sidebar-primary: #e4c65b;
+    --sidebar-primary-foreground: #12352f;
+    --sidebar-accent: #1a4a42;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #2a554c;
+    --sidebar-ring: #e4c65b;
 }
 
 .dark {
