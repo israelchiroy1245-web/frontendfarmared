@@ -31,39 +31,38 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-[radial-gradient(ellipse_at_top,_#1a4d44_0%,_#0f241f_55%,_#0a1a16_100%)] px-4">
+    <div className="flex min-h-svh items-center justify-center bg-[radial-gradient(ellipse_at_top,var(--sidebar-accent)_0%,var(--sidebar)_55%,#0a1a16_100%)] px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#c8e6c0] text-[#12352f]">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
             <Activity className="h-6 w-6" />
           </div>
-          <h1 className="font-display text-3xl text-white">FarmaRed</h1>
-          <p className="mt-2 text-sm text-white/60">Acceso al control operativo</p>
+          <h1 className="font-display text-3xl text-sidebar-foreground">FarmaRed</h1>
+          <p className="mt-2 text-sm text-sidebar-foreground/60">Acceso al control operativo</p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-sm"
+          className="rounded-2xl border border-sidebar-border bg-sidebar-accent/50 p-6 shadow-xl backdrop-blur-sm"
         >
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label htmlFor="usuario" className="text-xs font-medium text-white/70">
-                Correo
+              <label htmlFor="usuario" className="text-xs font-medium text-sidebar-foreground/70">
+                Usuario
               </label>
               <input
                 id="usuario"
                 name="usuario"
-                type="email"
                 autoComplete="username"
                 value={usuario}
                 onChange={(e) => setUsuario(e.target.value)}
-                className="h-10 w-full rounded-lg border border-white/15 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#c8e6c0]/60 focus:ring-2 focus:ring-[#c8e6c0]/25"
-                placeholder="admin@farmared.gt"
+                className="h-10 w-full rounded-lg border border-sidebar-border bg-sidebar-accent px-3 text-sm text-sidebar-foreground outline-none placeholder:text-sidebar-foreground/35 focus:border-sidebar-ring focus:ring-2 focus:ring-sidebar-ring/25"
+                placeholder="tu.usuario"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="password" className="text-xs font-medium text-white/70">
+              <label htmlFor="password" className="text-xs font-medium text-sidebar-foreground/70">
                 Contraseña
               </label>
               <input
@@ -73,7 +72,7 @@ export default function Login() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-10 w-full rounded-lg border border-white/15 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#c8e6c0]/60 focus:ring-2 focus:ring-[#c8e6c0]/25"
+                className="h-10 w-full rounded-lg border border-sidebar-border bg-sidebar-accent px-3 text-sm text-sidebar-foreground outline-none placeholder:text-sidebar-foreground/35 focus:border-sidebar-ring focus:ring-2 focus:ring-sidebar-ring/25"
                 placeholder="••••••••"
               />
             </div>
@@ -82,7 +81,7 @@ export default function Login() {
           <Button
             type="submit"
             disabled={loading}
-            className="mt-6 h-10 w-full bg-[#c8e6c0] text-[#12352f] hover:bg-[#d4edce]"
+            className="mt-6 h-10 w-full bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
           >
             {loading ? 'Entrando…' : 'Iniciar sesión'}
           </Button>

@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Activity,
   Ambulance,
@@ -7,6 +7,7 @@ import {
   FileBarChart,
   Headset,
   Landmark,
+  Receipt,
   LayoutDashboard,
   Menu,
   Package,
@@ -15,18 +16,33 @@ import {
   Wallet,
   LogOut,
   Settings,
+  Shield,
+  ChevronDown,
+  KeyRound,
+  ShoppingCart,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { logout } from '@/lib/auth'
 
+const HOVER_OPEN_MS = 3000
+
 const links = [
   { to: '/', label: 'Tablero', icon: LayoutDashboard },
   { to: '/sucursales', label: 'Sucursales', icon: Building2 },
-  { to: '/inventario', label: 'Inventario', icon: Package },
+  { 
+    to: '/inventario', 
+    label: 'Inventario', 
+    icon: Package, 
+    children: [
+      { to: '/inventario/compras', label: 'Compras', icon: ShoppingCart },
+      { to: '/inventario/proveedores', label: 'Proveedores', icon: Truck }
+    ],
+  },
+  { to: '/ventas', label: 'Ventas', icon: Receipt },
   { to: '/transferencias', label: 'Transferencias', icon: Truck },
   { to: '/caja', label: 'Flujo de caja', icon: Wallet },
   { to: '/activos', label: 'Activos fijos', icon: Landmark },
@@ -34,9 +50,24 @@ const links = [
   { to: '/entregas', label: 'Entregas', icon: Ambulance },
   { to: '/call-center', label: 'Call center', icon: Headset },
   { to: '/reportes', label: 'Reportes', icon: FileBarChart },
-  { to: '/usuarios', label: 'Usuarios', icon: Users },
+  {
+    to: '/usuarios',
+    label: 'Usuarios',
+    icon: Users,
+    children: [
+      { to: '/usuarios/roles', label: 'Roles', icon: Shield },
+      { to: '/usuarios/permisos', label: 'Permisos', icon: KeyRound },
+    ],
+  },
   { to: '/configuracion', label: 'Configuración', icon: Settings },
 ]
+
+const linkClass = ({ isActive }) =>
+  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+    isActive
+      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+      : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+  }`
 
 function Brand() {
   return (
@@ -52,10 +83,93 @@ function Brand() {
   )
 }
 
+function NavGroup({ item, onClick }) {
+  const Icon = item.icon
+  const location = useLocation()
+  const sectionActive = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
+  const [open, setOpen] = useState(sectionActive)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    if (sectionActive) setOpen(true)
+  }, [sectionActive])
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  function clearTimer() {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  function handleMouseEnter() {
+    clearTimer()
+    timerRef.current = setTimeout(() => setOpen(true), HOVER_OPEN_MS)
+  }
+
+  function handleMouseLeave() {
+    clearTimer()
+    if (!sectionActive) setOpen(false)
+  }
+
+  return (
+    <div onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <div className="flex items-center gap-1">
+        <NavLink
+          to={item.to}
+          end
+          onClick={onClick}
+          className={({ isActive }) => `${linkClass({ isActive: isActive || sectionActive })} flex-1`}
+        >
+          <Icon className="h-4 w-4" />
+          {item.label}
+        </NavLink>
+        <button
+          type="button"
+          aria-label={`Mostrar submenú de ${item.label}`}
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="rounded-lg p-2 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+        >
+          <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {open ? (
+        <div className="mt-1 ml-4 flex flex-col gap-1 border-l border-sidebar-border pl-2">
+          {item.children.map((child) => {
+            const ChildIcon = child.icon
+            return (
+              <NavLink
+                key={child.to}
+                to={child.to}
+                onClick={onClick}
+                className={linkClass}
+              >
+                <ChildIcon className="h-4 w-4" />
+                {child.label}
+              </NavLink>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function NavItems({ onClick, onLogout }) {
   return (
     <nav className="mt-8 flex flex-col gap-1">
       {links.map((l) => {
+        if (l.children?.length) {
+          return <NavGroup key={l.to} item={l} onClick={onClick} />
+        }
+
         const Icon = l.icon
         return (
           <NavLink
@@ -63,13 +177,7 @@ function NavItems({ onClick, onLogout }) {
             to={l.to}
             end={l.to === '/'}
             onClick={onClick}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
-              }`
-            }
+            className={linkClass}
           >
             <Icon className="h-4 w-4" />
             {l.label}

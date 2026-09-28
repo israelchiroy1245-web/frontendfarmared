@@ -22,6 +22,9 @@ const badgeVariants = cva(
         ok: "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
         warn: "border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-300",
         danger: "border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-300",
+        mall: "border-amber-600/25 bg-amber-100/80 text-amber-900",
+        tradicional: "border-emerald-600/25 bg-emerald-100/80 text-emerald-900",
+        gasolinera: "border-slate-400/40 bg-slate-200/80 text-slate-800",
       },
     },
     defaultVariants: {
