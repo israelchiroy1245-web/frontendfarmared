@@ -366,7 +366,13 @@ export default function Usuarios() {
     if (!id) return
     setSaving(true)
     try {
-      await api(`/api/usuarios/${id}`, { method: 'DELETE' })
+      const empleadoId = field(deleteTarget, 'EMPLEADO_ID', 'Empleado_ID')
+      if (!empleadoId) {
+        toast.error('Esta cuenta no tiene empleado para inactivar')
+        setSaving(false)
+        return
+      }
+      await api(`/api/empleados/${empleadoId}/estado`, { method: 'PATCH', body: { estado: 'INACTIVO' } })
       toast.success('Usuario desactivado exitosamente')
       setDeleteOpen(false)
       setDeleteTarget(null)
