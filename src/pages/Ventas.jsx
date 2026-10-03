@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Ban, Eye, Minus, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,6 +20,7 @@ import {
 import { api, gtq } from '@/lib/utils'
 import { getUser } from '@/lib/auth'
 import { getRol } from '@/lib/roles'
+import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
   if (!row) return null
@@ -47,18 +48,62 @@ function ivaIncluido(total) {
   return Math.round(Number(total || 0) * 12 / 112 * 100) / 100
 }
 
+function loteVigente(row) {
+  const cantidad = Number(field(row, 'CANTIDAD', 'Cantidad') || 0)
+  if (!(cantidad > 0)) return false
+  if (Number(field(row, 'VENCIDO')) === 1) return false
+  const fecha = String(field(row, 'FECHA_VENCIMIENTO') || '')
+  if (fecha && fecha < hoy()) return false
+  return true
+}
+
+function agruparStock(filas) {
+  const mapa = new Map()
+  for (const row of filas) {
+    if (!loteVigente(row)) continue
+    const id = field(row, 'MEDICAMENTO_ID')
+    if (id == null) continue
+    const cantidad = Number(field(row, 'CANTIDAD', 'Cantidad') || 0)
+    const fecha = String(field(row, 'FECHA_VENCIMIENTO') || '')
+    const lote = field(row, 'LOTE', 'Lote') || ''
+    const actual = mapa.get(id)
+    if (!actual) {
+      mapa.set(id, {
+        medicamentoId: id,
+        nombre: field(row, 'NOMBRE_MEDICAMENTO') || 'Medicamento',
+        codigoBarra: field(row, 'CODIGO_BARRA') || '',
+        lote,
+        cantidad,
+        fechaVencimiento: fecha,
+        precio: Number(field(row, 'PRECIO_VENTA') || 0),
+        lotes: 1,
+      })
+      continue
+    }
+    actual.cantidad += cantidad
+    actual.lotes += 1
+    if (fecha && (!actual.fechaVencimiento || fecha < actual.fechaVencimiento)) {
+      actual.fechaVencimiento = fecha
+      actual.lote = lote || actual.lote
+    }
+  }
+  return [...mapa.values()]
+}
+
 export default function Ventas() {
   const cobrar = getRol() === 'ADMIN' || getRol() === 'CAJERO'
   const [params] = useSearchParams()
   const usuario = getUser()
   const [sucursales, setSucursales] = useState([])
-  const [medicamentos, setMedicamentos] = useState([])
   const [sucursalId, setSucursalId] = useState(
     () => params.get('sucursal') || String(usuario?.sucursalId || ''),
   )
   const [turno, setTurno] = useState(null)
   const [cajaCerrada, setCajaCerrada] = useState(false)
   const [busqueda, setBusqueda] = useState('')
+  const busquedaDebounced = useDebounced(busqueda, 300)
+  const [coincidencias, setCoincidencias] = useState([])
+  const [buscando, setBuscando] = useState(false)
   const [carrito, setCarrito] = useState([])
   const [nit, setNit] = useState('CF')
   const [nombreFactura, setNombreFactura] = useState('Consumidor Final')
@@ -77,12 +122,8 @@ export default function Ventas() {
   const reqId = useRef(0)
 
   const loadCatalogos = useCallback(async () => {
-    const [suc, med] = await Promise.all([
-      api('/api/catalogos/sucursales'),
-      api('/api/catalogos/medicamentos'),
-    ])
+    const suc = await api('/api/catalogos/sucursales')
     setSucursales(Array.isArray(suc?.datos) ? suc.datos : [])
-    setMedicamentos(Array.isArray(med?.datos) ? med.datos : [])
   }, [])
 
   const loadVentas = useCallback(async () => {
@@ -135,18 +176,6 @@ export default function Ventas() {
     loadVentas().catch((e) => toast.error(e.message || 'No se cargaron las ventas del día'))
   }, [loadVentas])
 
-  const coincidencias = useMemo(() => {
-    const q = busqueda.trim().toLowerCase()
-    if (!q) return []
-    return medicamentos
-      .filter((med) => {
-        const nombre = String(field(med, 'NOMBRE_MEDICAMENTO') || '').toLowerCase()
-        const barra = String(field(med, 'CODIGO_BARRA') || '').toLowerCase()
-        return nombre.includes(q) || barra.includes(q)
-      })
-      .slice(0, 8)
-  }, [busqueda, medicamentos])
-
   const estimado = carrito.reduce((suma, linea) => suma + linea.precio * linea.cantidad, 0)
   const iva = ivaIncluido(estimado)
   const subtotal = Math.round((estimado - iva) * 100) / 100
@@ -157,10 +186,38 @@ export default function Ventas() {
   const recibido = pagosPreview.reduce((suma, n) => suma + n, 0) || estimado
   const vuelto = Math.max(0, Math.round((recibido - estimado) * 100) / 100)
   const puedeCarrito = cobrar && Boolean(turno)
+  const consulta = busquedaDebounced.trim()
+
+  useEffect(() => {
+    if (!puedeCarrito || !sucursalId || !consulta) {
+      setCoincidencias([])
+      setBuscando(false)
+      return undefined
+    }
+    let vivo = true
+    setBuscando(true)
+    api('/api/inventario', { query: { sucursalId, q: consulta, limit: 8 } })
+      .then((data) => {
+        if (!vivo) return
+        const filas = Array.isArray(data?.datos) ? data.datos : []
+        setCoincidencias(agruparStock(filas).slice(0, 8))
+      })
+      .catch((err) => {
+        if (!vivo) return
+        setCoincidencias([])
+        toast.error(err.message || 'No se pudo buscar el inventario')
+      })
+      .finally(() => {
+        if (vivo) setBuscando(false)
+      })
+    return () => {
+      vivo = false
+    }
+  }, [consulta, puedeCarrito, sucursalId])
 
   function agregar(med) {
-    const id = field(med, 'ID')
-    const precio = Number(field(med, 'PRECIO_VENTA') || 0)
+    const id = med.medicamentoId
+    const precio = Number(med.precio || 0)
     setCarrito((prev) => {
       const ya = prev.find((linea) => linea.medicamentoId === id)
       if (ya) {
@@ -170,12 +227,13 @@ export default function Ventas() {
       }
       return [...prev, {
         medicamentoId: id,
-        nombre: field(med, 'NOMBRE_MEDICAMENTO') || 'Medicamento',
+        nombre: med.nombre || 'Medicamento',
         precio,
         cantidad: 1,
       }]
     })
     setBusqueda('')
+    setCoincidencias([])
   }
 
   function cambiarCantidad(id, delta) {
@@ -299,20 +357,29 @@ export default function Ventas() {
                 <Search className="pointer-events-none absolute top-2 left-2.5 h-4 w-4 text-muted-foreground" />
                 <Input className="pl-8" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Nombre o código de barras" />
               </div>
+              {busqueda.trim() === consulta && consulta && !buscando && coincidencias.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay existencias en esta sucursal.</p>
+              ) : null}
               {coincidencias.length > 0 ? (
                 <div className="rounded-lg border border-border">
                   {coincidencias.map((med) => (
                     <button
-                      key={field(med, 'ID')}
+                      key={med.medicamentoId}
                       type="button"
                       className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted"
                       onClick={() => agregar(med)}
                     >
                       <span>
-                        {field(med, 'NOMBRE_MEDICAMENTO')}
-                        <span className="ml-2 text-xs text-muted-foreground">{field(med, 'CODIGO_BARRA')}</span>
+                        {med.nombre}
+                        <span className="ml-2 text-xs text-muted-foreground">{med.codigoBarra}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          Lote {med.lote || '—'}
+                          {med.lotes > 1 ? ` · ${med.lotes} lotes` : ''}
+                          {' · '}
+                          {med.cantidad} u · vence {med.fechaVencimiento || '—'}
+                        </span>
                       </span>
-                      <span>{gtq(field(med, 'PRECIO_VENTA'))}</span>
+                      <span>{gtq(med.precio)}</span>
                     </button>
                   ))}
                 </div>
