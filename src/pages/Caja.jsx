@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ClipboardCheck, Eye, Plus, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import Buscador from '@/components/Buscador'
 import Paginacion from '@/components/Paginacion'
 import {
@@ -308,19 +309,24 @@ export default function Caja() {
             Cada sucursal tiene un solo turno abierto. Sin ese turno no se puede cobrar. El esperado es fondo más efectivo menos gastos, y el auditor marca el cierre.
           </p>
         </div>
-        {operar && !activo ? (
-          <Button
-            className="gap-2"
-            onClick={() => {
-              setFormSucursal(sucursalId)
-              setMontoInicial('')
-              setAbrirOpen(true)
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            Abrir turno
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {sucursalId ? (
+            <Link to={`/ventas?sucursal=${sucursalId}`} className={buttonVariants({ variant: 'outline' })}>Ir a POS</Link>
+          ) : null}
+          {operar && !activo ? (
+            <Button
+              className="gap-2"
+              onClick={() => {
+                setFormSucursal(sucursalId)
+                setMontoInicial('')
+                setAbrirOpen(true)
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Abrir turno
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <Card>
