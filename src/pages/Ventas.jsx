@@ -533,13 +533,51 @@ export default function Ventas() {
       </Dialog>
 
       <Dialog open={Boolean(detail)} onOpenChange={(open) => { if (!open) setDetail(null) }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{field(detail, 'FOLIO') || 'Ticket'}</DialogTitle>
             <DialogDescription>
-              IVA {gtq(field(detail, 'IVA'))} · Total {gtq(field(detail, 'TOTAL'))} · Vuelto {gtq(field(detail, 'VUELTO'))}
+              {field(detail, 'ESTADO') || '—'} · {field(detail, 'CAJERO_NOMBRE') || '—'}
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>NIT {field(detail, 'NIT') || 'CF'}</p>
+            <p>{field(detail, 'NOMBRE_FACTURA') || 'Consumidor Final'}</p>
+            <div className="grid grid-cols-2 gap-1">
+              <p>Subtotal {gtq(field(detail, 'SUBTOTAL'))}</p>
+              <p>IVA {gtq(field(detail, 'IVA'))}</p>
+              <p className="font-medium">Total {gtq(field(detail, 'TOTAL'))}</p>
+              <p>Vuelto {gtq(field(detail, 'VUELTO'))}</p>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Lote</TableHead>
+                  <TableHead>Cant.</TableHead>
+                  <TableHead>Precio</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(Array.isArray(field(detail, 'ITEMS')) ? field(detail, 'ITEMS') : []).map((linea) => (
+                  <TableRow key={field(linea, 'ID')}>
+                    <TableCell>{field(linea, 'NOMBRE_MEDICAMENTO') || '—'}</TableCell>
+                    <TableCell>{field(linea, 'LOTE') || '—'}</TableCell>
+                    <TableCell>{field(linea, 'CANTIDAD') ?? '—'}</TableCell>
+                    <TableCell>{gtq(field(linea, 'PRECIO'))}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <ul className="space-y-1">
+              {(Array.isArray(field(detail, 'PAGOS')) ? field(detail, 'PAGOS') : []).map((pago) => (
+                <li key={field(pago, 'ID')}>
+                  {field(pago, 'METODO_PAGO') || '—'} {gtq(field(pago, 'MONTO'))}
+                  {field(pago, 'REFERENCIA') ? ` · ${field(pago, 'REFERENCIA')}` : ''}
+                </li>
+              ))}
+            </ul>
+          </div>
         </DialogContent>
       </Dialog>
 
