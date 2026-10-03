@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
-import { getUser } from '@/lib/auth'
+import { getRol } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -42,7 +42,7 @@ function lineaVacia() {
 }
 
 function puedeRegistrar() {
-  const rol = String(getUser()?.rol || '').toUpperCase()
+  const rol = getRol()
   return rol === 'ADMIN' || rol === 'QF'
 }
 
@@ -174,8 +174,8 @@ export default function Compras() {
         medicamentoId: Number(linea.medicamentoId),
         cantidad,
         lote: linea.lote.trim(),
-        fechaVencimiento: linea.fechaVencimiento,
-        precioCosto,
+        vencimiento: linea.fechaVencimiento,
+        costo: precioCosto,
       })
     }
 
@@ -187,7 +187,7 @@ export default function Compras() {
           numeroFactura: numeroFactura.trim(),
           proveedorId: Number(formProveedor),
           sucursalId: Number(formSucursal),
-          items,
+          lineas: items,
         },
       })
       toast.success('Compra registrada. El stock entró por procesar_compra')
@@ -234,7 +234,7 @@ export default function Compras() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · Compras</p>
           <h1 className="font-display text-3xl">Compras a proveedores</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Recepción de facturas. Cada línea entra al inventario de la sucursal con lote y vencimiento.
+            Recepción de facturas. Cada línea entra al inventario por procesar_compra. La factura queda registrada y no se modifica.
           </p>
         </div>
         {registrar ? (
@@ -310,6 +310,7 @@ export default function Compras() {
                   <TableHead>Fecha</TableHead>
                   <TableHead>Proveedor</TableHead>
                   <TableHead>Sucursal</TableHead>
+                  <TableHead>Recibió</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Líneas</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -324,6 +325,7 @@ export default function Compras() {
                       <TableCell>{field(row, 'FECHA_COMPRA') || '—'}</TableCell>
                       <TableCell>{field(row, 'PROVEEDOR_NOMBRE') || '—'}</TableCell>
                       <TableCell>{field(row, 'SUCURSAL_NOMBRE') || '—'}</TableCell>
+                      <TableCell>{field(row, 'EMPLEADO_NOMBRE') || '—'}</TableCell>
                       <TableCell>{gtq(field(row, 'TOTAL_COMPRA'))}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{field(row, 'TOTAL_LINEAS') ?? 0}</Badge>

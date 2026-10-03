@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
-import { getUser } from '@/lib/auth'
+import { getRol } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -41,7 +41,7 @@ const selectClass =
   'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
 function rolActual() {
-  return String(getUser()?.rol || '').toUpperCase()
+  return getRol()
 }
 
 function puedeOperar() {
@@ -68,6 +68,7 @@ export default function Caja() {
   const [turnos, setTurnos] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [activo, setActivo] = useState(null)
+  const [abierta, setAbierta] = useState(null)
   const [sucursalId, setSucursalId] = useState('')
   const [estado, setEstado] = useState('')
   const [q, setQ] = useState('')
@@ -115,6 +116,20 @@ export default function Caja() {
     }
   }, [])
 
+  const loadAbierta = useCallback(async () => {
+    if (!sucursalId) {
+      setAbierta(null)
+      return
+    }
+    try {
+      const data = await api('/api/caja/abierta', { query: { sucursalId } })
+      setAbierta(data.datos || null)
+    } catch (e) {
+      if (/no hay turno/i.test(e.message)) setAbierta(null)
+      else throw e
+    }
+  }, [sucursalId])
+
   const loadTurnos = useCallback(async () => {
     const id = ++reqId.current
     const query = { limit, offset }
@@ -137,7 +152,7 @@ export default function Caja() {
     ;(async () => {
       setLoading(true)
       try {
-        await Promise.all([loadSucursales(), loadActivo(), loadTurnos()])
+        await Promise.all([loadSucursales(), loadActivo(), loadAbierta(), loadTurnos()])
         if (alive) setError(null)
       } catch (e) {
         if (alive) setError(e.message)
@@ -148,10 +163,10 @@ export default function Caja() {
     return () => {
       alive = false
     }
-  }, [loadSucursales, loadActivo, loadTurnos])
+  }, [loadSucursales, loadActivo, loadAbierta, loadTurnos])
 
   async function refrescar() {
-    await Promise.all([loadActivo(), loadTurnos()])
+    await Promise.all([loadActivo(), loadAbierta(), loadTurnos()])
   }
 
   async function handleAbrir(e) {
@@ -167,7 +182,7 @@ export default function Caja() {
     }
     setSaving(true)
     try {
-      const data = await api('/api/caja/apertura', {
+      const data = await api('/api/caja/abrir', {
         method: 'POST',
         body: { sucursalId: Number(formSucursal), montoInicial: monto },
       })
@@ -221,8 +236,8 @@ export default function Caja() {
     }
     setSaving(true)
     try {
-      const data = await api(`/api/caja/${id}/cierre`, {
-        method: 'POST',
+      const data = await api(`/api/caja/${id}/cerrar`, {
+        method: 'PATCH',
         body: { montoContado: contado },
       })
       toast.success(data.mensaje || 'Turno cerrado')
@@ -290,7 +305,7 @@ export default function Caja() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Gerencial · Caja</p>
           <h1 className="font-display text-3xl">Caja y turnos</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Fondo inicial, gastos y arqueo. La diferencia es el efectivo contado menos lo esperado, y el auditor marca el cierre.
+            Cada sucursal tiene un solo turno abierto. Sin ese turno no se puede cobrar. El esperado es fondo más efectivo menos gastos, y el auditor marca el cierre.
           </p>
         </div>
         {operar && !activo ? (
@@ -353,10 +368,32 @@ export default function Caja() {
               ) : null}
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">Abre un turno para declarar el fondo y registrar movimientos.</p>
+            <p className="text-sm text-muted-foreground">No tienes un turno abierto. Una sucursal solo admite uno a la vez.</p>
           )}
         </CardContent>
       </Card>
+
+      {sucursalId && (!abierta || field(abierta, 'ID') !== field(activo, 'ID')) ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Turno de la sucursal</CardDescription>
+            <CardTitle className="mt-1">
+              {abierta
+                ? `Abierto por ${field(abierta, 'CAJERO_NOMBRE') || '—'}`
+                : 'Sin turno abierto'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {abierta ? (
+              <p className="text-sm text-muted-foreground">
+                Fondo {gtq(field(abierta, 'MONTO_INICIAL'))} · Efectivo {gtq(field(abierta, 'VENTAS_EFECTIVO'))} · Gastos {gtq(field(abierta, 'GASTOS'))}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Esta sucursal no puede cobrar hasta que alguien abra la caja.</p>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
@@ -416,6 +453,8 @@ export default function Caja() {
                   <TableHead>Sucursal</TableHead>
                   <TableHead>Cajero</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Esperado</TableHead>
+                  <TableHead>Cerró</TableHead>
                   <TableHead>Diferencia</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -432,6 +471,8 @@ export default function Caja() {
                       <TableCell>
                         <Badge variant={badgeEstado(est)}>{est || '—'}</Badge>
                       </TableCell>
+                      <TableCell>{field(row, 'TOTAL_ESPERADO') == null ? '—' : gtq(field(row, 'TOTAL_ESPERADO'))}</TableCell>
+                      <TableCell>{field(row, 'CERRADO_POR_NOMBRE') || '—'}</TableCell>
                       <TableCell>{field(row, 'DIFERENCIA') == null ? '—' : gtq(field(row, 'DIFERENCIA'))}</TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
@@ -476,7 +517,7 @@ export default function Caja() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Abrir turno</DialogTitle>
-            <DialogDescription>El fondo inicial queda como depósito de apertura. Solo puede haber un turno abierto por cajero.</DialogDescription>
+            <DialogDescription>El fondo inicial queda como depósito de apertura. La sucursal no puede tener otro turno abierto.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAbrir} className="grid gap-3">
             <div className="space-y-1.5">
@@ -568,8 +609,11 @@ export default function Caja() {
                 Apertura {field(detail, 'FECHA_APERTURA') || '—'} · Cierre {field(detail, 'FECHA_CIERRE') || '—'}
               </p>
               <p className="text-sm">
-                Fondo {gtq(field(detail, 'MONTO_INICIAL'))} · Efectivo {gtq(field(detail, 'VENTAS_EFECTIVO'))} · Tarjeta {gtq(field(detail, 'VENTAS_TARJETA'))} · Gastos {gtq(field(detail, 'GASTOS'))}
+                Fondo {gtq(field(detail, 'MONTO_INICIAL'))} · Efectivo {gtq(field(detail, 'VENTAS_EFECTIVO'))} · Tarjeta {gtq(field(detail, 'VENTAS_TARJETA'))} · Gastos {gtq(field(detail, 'GASTOS'))} · Esperado {field(detail, 'TOTAL_ESPERADO') == null ? '—' : gtq(field(detail, 'TOTAL_ESPERADO'))}
               </p>
+              {field(detail, 'CERRADO_POR_NOMBRE') ? (
+                <p className="text-sm text-muted-foreground">Cerró {field(detail, 'CERRADO_POR_NOMBRE')}</p>
+              ) : null}
               <p className="text-sm">
                 Contado {field(detail, 'MONTO_CONTADO') == null ? '—' : gtq(field(detail, 'MONTO_CONTADO'))} · Diferencia {field(detail, 'DIFERENCIA') == null ? '—' : gtq(field(detail, 'DIFERENCIA'))}
               </p>

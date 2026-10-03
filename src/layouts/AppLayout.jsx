@@ -15,7 +15,6 @@ import {
   Users,
   Wallet,
   LogOut,
-  Settings,
   Shield,
   ChevronDown,
   KeyRound,
@@ -27,40 +26,51 @@ import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { logout } from '@/lib/auth'
+import { getRol, puedeModulo } from '@/lib/roles'
 
 const HOVER_OPEN_MS = 3000
 
 const links = [
-  { to: '/', label: 'Tablero', icon: LayoutDashboard },
-  { to: '/sucursales', label: 'Sucursales', icon: Building2 },
-  { 
-    to: '/inventario', 
-    label: 'Inventario', 
-    icon: Package, 
+  { to: '/', label: 'Tablero', icon: LayoutDashboard, modulo: 'tablero' },
+  { to: '/sucursales', label: 'Sucursales', icon: Building2, modulo: 'sucursales' },
+  {
+    to: '/inventario',
+    label: 'Inventario',
+    icon: Package,
+    modulo: 'inventario',
     children: [
-      { to: '/inventario/compras', label: 'Compras', icon: ShoppingCart },
-      { to: '/inventario/proveedores', label: 'Proveedores', icon: Truck }
+      { to: '/inventario/compras', label: 'Compras', icon: ShoppingCart, modulo: 'compras' },
+      { to: '/inventario/proveedores', label: 'Proveedores', icon: Truck, modulo: 'proveedores' },
     ],
   },
-  { to: '/ventas', label: 'Ventas', icon: Receipt },
-  { to: '/transferencias', label: 'Transferencias', icon: Truck },
-  { to: '/caja', label: 'Flujo de caja', icon: Wallet },
-  { to: '/activos', label: 'Activos fijos', icon: Landmark },
-  { to: '/planilla', label: 'Planilla', icon: Users },
-  { to: '/entregas', label: 'Entregas', icon: Ambulance },
-  { to: '/call-center', label: 'Call center', icon: Headset },
-  { to: '/reportes', label: 'Reportes', icon: FileBarChart },
+  { to: '/ventas', label: 'Ventas', icon: Receipt, modulo: 'ventas' },
+  { to: '/transferencias', label: 'Transferencias', icon: Truck, modulo: 'transferencias' },
+  { to: '/caja', label: 'Flujo de caja', icon: Wallet, modulo: 'caja' },
+  { to: '/activos', label: 'Activos fijos', icon: Landmark, modulo: 'activos' },
+  { to: '/planilla', label: 'Planilla', icon: Users, modulo: 'planilla' },
+  { to: '/entregas', label: 'Entregas', icon: Ambulance, modulo: 'entregas' },
+  { to: '/call-center', label: 'Call center', icon: Headset, modulo: 'callCenter' },
+  { to: '/reportes', label: 'Reportes', icon: FileBarChart, modulo: 'reportes' },
   {
     to: '/usuarios',
     label: 'Usuarios',
     icon: Users,
+    modulo: 'usuarios',
     children: [
-      { to: '/usuarios/roles', label: 'Roles', icon: Shield },
-      { to: '/usuarios/permisos', label: 'Permisos', icon: KeyRound },
+      { to: '/usuarios/roles', label: 'Roles', icon: Shield, modulo: 'roles' },
+      { to: '/usuarios/permisos', label: 'Permisos', icon: KeyRound, modulo: 'permisos' },
     ],
   },
-  { to: '/configuracion', label: 'Configuración', icon: Settings },
 ]
+
+function linksDelRol(rol) {
+  return links.flatMap((item) => {
+    if (!puedeModulo(item.modulo, rol)) return []
+    if (!item.children) return [item]
+    const children = item.children.filter((child) => puedeModulo(child.modulo, rol))
+    return [{ ...item, children }]
+  })
+}
 
 const linkClass = ({ isActive }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
@@ -163,9 +173,11 @@ function NavGroup({ item, onClick }) {
 }
 
 function NavItems({ onClick, onLogout }) {
+  const visibles = linksDelRol(getRol())
+
   return (
     <nav className="mt-8 flex flex-col gap-1">
-      {links.map((l) => {
+      {visibles.map((l) => {
         if (l.children?.length) {
           return <NavGroup key={l.to} item={l} onClick={onClick} />
         }
@@ -200,6 +212,7 @@ function NavItems({ onClick, onLogout }) {
 export default function AppLayout() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const rol = getRol()
 
   function handleLogout() {
     logout()
@@ -233,6 +246,7 @@ export default function AppLayout() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {rol ? <Badge variant="secondary">{rol}</Badge> : null}
             <Badge variant="gold">Examen privado</Badge>
             <Badge variant="ok" className="hidden sm:inline-flex">
               <ClipboardList className="mr-1 h-3 w-3" />

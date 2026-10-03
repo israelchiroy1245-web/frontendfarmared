@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, fmtDate, gtq } from '@/lib/utils'
-import { getUser } from '@/lib/auth'
+import { getRol } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 import Paginacion from '@/components/Paginacion'
 
@@ -47,7 +47,7 @@ const emptyForm = {
 }
 
 function puedeEscribir() {
-  const rol = String(getUser()?.rol || '').toUpperCase()
+  const rol = getRol()
   return rol === 'ADMIN' || rol === 'QF'
 }
 

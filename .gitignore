@@ -11,6 +11,8 @@ node_modules
 docs
 .env
 .cursor
+Script1.sql
+ScriptInformacion.sql
 
 dist
 dist-ssr

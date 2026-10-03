@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dialog'
 import Buscador from '@/components/Buscador'
 import { api, fmtDate } from '@/lib/utils'
+import { getRol } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 import Paginacion from '@/components/Paginacion'
 
@@ -139,6 +140,7 @@ function SucursalesSkeleton() {
 }
 
 export default function Sucursales() {
+  const editar = getRol() === 'ADMIN' || getRol() === 'QF'
   const [sucursales, setSucursales] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -367,10 +369,12 @@ export default function Sucursales() {
             ))}
           </select>
           <Buscador value={q} onChange={setQ} placeholder="Buscar sucursal o departamento" />
-          <Button onClick={openCreate} className="gap-2 shrink-0">
-            <Plus className="h-4 w-4" />
-            Nueva
-          </Button>
+          {editar ? (
+            <Button onClick={openCreate} className="gap-2 shrink-0">
+              <Plus className="h-4 w-4" />
+              Nueva
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -448,10 +452,12 @@ export default function Sucursales() {
                           <Button type="button" variant="ghost" size="icon-sm" title="Ver" onClick={() => openDetail(id)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button type="button" variant="ghost" size="icon-sm" title="Editar" onClick={() => openEdit(id)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {activa ? (
+                          {editar ? (
+                            <Button type="button" variant="ghost" size="icon-sm" title="Editar" onClick={() => openEdit(id)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                          {editar && activa ? (
                             <Button
                               type="button"
                               variant="ghost"
@@ -461,7 +467,8 @@ export default function Sucursales() {
                             >
                               <PowerOff className="h-4 w-4 text-destructive" />
                             </Button>
-                          ) : (
+                          ) : null}
+                          {editar && !activa ? (
                             <Button
                               type="button"
                               variant="ghost"
@@ -471,7 +478,7 @@ export default function Sucursales() {
                             >
                               <Power className="h-4 w-4 text-emerald-700" />
                             </Button>
-                          )}
+                          ) : null}
                         </div>
                       </TableCell>
                     </TableRow>

@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
-import { getUser } from '@/lib/auth'
+import { getRol } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -35,7 +35,7 @@ function field(row, ...keys) {
 }
 
 function puedeMantener() {
-  const rol = String(getUser()?.rol || '').toUpperCase()
+  const rol = getRol()
   return rol === 'ADMIN' || rol === 'QF'
 }
 

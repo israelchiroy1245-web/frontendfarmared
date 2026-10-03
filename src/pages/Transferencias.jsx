@@ -17,8 +17,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import Buscador from '@/components/Buscador'
 import { api } from '@/lib/utils'
-import { getUser } from '@/lib/auth'
+import { getRol } from '@/lib/roles'
+import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
   if (!row) return null
@@ -42,8 +44,13 @@ function lineaVacia() {
 }
 
 function puedeGestionar() {
-  const rol = String(getUser()?.rol || '').toUpperCase()
+  const rol = getRol()
   return rol === 'ADMIN' || rol === 'QF'
+}
+
+function puedeRecibir() {
+  const rol = getRol()
+  return rol === 'ADMIN' || rol === 'CAJERO'
 }
 
 function badgeEstado(estado) {
@@ -64,19 +71,18 @@ function etiquetaEstado(estado) {
   return estado || '—'
 }
 
-/** Backend total ≈ tamaño de página; inferimos si hay siguiente. */
-function totalInferido(offset, limit, pageLen) {
-  if (pageLen < limit) return offset + pageLen
-  return offset + pageLen + 1
-}
-
 export default function Transferencias() {
   const gestionar = puedeGestionar()
+  const recibir = puedeRecibir()
   const [rows, setRows] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [medicamentos, setMedicamentos] = useState([])
   const [sucursalId, setSucursalId] = useState('')
   const [estado, setEstado] = useState('')
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
+  const [q, setQ] = useState('')
+  const qDebounced = useDebounced(q)
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
@@ -110,12 +116,15 @@ export default function Transferencias() {
     const query = { limit, offset }
     if (sucursalId) query.sucursalId = sucursalId
     if (estado) query.estado = estado
+    if (fechaDesde) query.fechaDesde = fechaDesde
+    if (fechaHasta) query.fechaHasta = fechaHasta
+    if (qDebounced.trim()) query.q = qDebounced.trim()
     const data = await api('/api/transferencias', { query })
     if (id !== reqId.current) return
     const list = Array.isArray(data?.datos) ? data.datos : []
     setRows(list)
-    setTotal(totalInferido(offset, limit, list.length))
-  }, [limit, offset, sucursalId, estado])
+    setTotal(Number(data?.paginacion?.total ?? data?.total ?? 0))
+  }, [limit, offset, sucursalId, estado, fechaDesde, fechaHasta, qDebounced])
 
   useEffect(() => {
     let alive = true
@@ -134,7 +143,7 @@ export default function Transferencias() {
 
   useEffect(() => {
     setOffset(0)
-  }, [sucursalId, estado, limit])
+  }, [sucursalId, estado, fechaDesde, fechaHasta, qDebounced, limit])
 
   useEffect(() => {
     let alive = true
@@ -324,11 +333,14 @@ export default function Transferencias() {
 
       <Card>
         <CardHeader className="gap-4">
-          <div>
-            <CardTitle>Listado de transferencias</CardTitle>
-            <CardDescription>Filtro por sucursal (origen o destino) y estado</CardDescription>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <CardTitle>Listado de transferencias</CardTitle>
+              <CardDescription>Sucursal de origen o destino, estado y fechas</CardDescription>
+            </div>
+            <Buscador value={q} onChange={setQ} placeholder="Buscar sucursal u observación…" />
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <select
               className={selectClass}
               aria-label="Sucursal"
@@ -355,6 +367,8 @@ export default function Transferencias() {
                 </option>
               ))}
             </select>
+            <Input type="date" aria-label="Desde" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
+            <Input type="date" aria-label="Hasta" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -584,9 +598,9 @@ export default function Transferencias() {
                 </TableBody>
               </Table>
 
-              {gestionar ? (
+              {(gestionar && estadoDetalle === 'SOLICITADA') || (recibir && estadoDetalle === 'EN_TRANSITO') ? (
                 <DialogFooter className="gap-2 sm:justify-start">
-                  {estadoDetalle === 'SOLICITADA' ? (
+                  {gestionar && estadoDetalle === 'SOLICITADA' ? (
                     <>
                       <Button disabled={acting} onClick={() => handleAccion('enviar')}>
                         {acting ? 'Procesando…' : 'Enviar (descontar origen)'}
@@ -596,7 +610,7 @@ export default function Transferencias() {
                       </Button>
                     </>
                   ) : null}
-                  {estadoDetalle === 'EN_TRANSITO' ? (
+                  {recibir && estadoDetalle === 'EN_TRANSITO' ? (
                     <Button disabled={acting} onClick={() => handleAccion('recibir')}>
                       {acting ? 'Procesando…' : 'Recibir en destino'}
                     </Button>

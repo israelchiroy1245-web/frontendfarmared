@@ -4,6 +4,7 @@ import { Activity } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { login } from '@/lib/auth'
+import { inicioDe } from '@/lib/roles'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -22,7 +23,7 @@ export default function Login() {
     try {
       await login({ usuario: usuario.trim(), password })
       toast.success('Sesión iniciada')
-      navigate('/', { replace: true })
+      navigate(inicioDe(), { replace: true })
     } catch (err) {
       toast.error(err.message || 'No se pudo iniciar sesión')
     } finally {
