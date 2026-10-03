@@ -50,7 +50,7 @@ function puedeGestionar() {
 
 function puedeRecibir() {
   const rol = getRol()
-  return rol === 'ADMIN' || rol === 'CAJERO'
+  return rol === 'ADMIN' || rol === 'QF'
 }
 
 function badgeEstado(estado) {

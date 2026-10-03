@@ -8,7 +8,7 @@ export const MODULOS = {
   compras: ['ADMIN', 'QF'],
   proveedores: ['ADMIN', 'QF', 'AUDITOR'],
   ventas: ['ADMIN', 'CAJERO', 'AUDITOR'],
-  transferencias: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR'],
+  transferencias: ['ADMIN', 'QF', 'AUDITOR'],
   caja: ['ADMIN', 'CAJERO', 'AUDITOR'],
   activos: ['ADMIN', 'QF', 'AUDITOR'],
   planilla: ['ADMIN', 'AUDITOR'],
