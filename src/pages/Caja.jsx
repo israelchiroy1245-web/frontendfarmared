@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -70,7 +70,7 @@ export default function Caja() {
   const [sucursales, setSucursales] = useState([])
   const [activo, setActivo] = useState(null)
   const [abierta, setAbierta] = useState(null)
-  const [sucursalId, setSucursalId] = useState('')
+  const [sucursalId, setSucursalId] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [estado, setEstado] = useState('')
   const [q, setQ] = useState('')
   const qDebounced = useDebounced(q)
@@ -83,7 +83,7 @@ export default function Caja() {
   const [saving, setSaving] = useState(false)
 
   const [abrirOpen, setAbrirOpen] = useState(false)
-  const [formSucursal, setFormSucursal] = useState('')
+  const [formSucursal, setFormSucursal] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [montoInicial, setMontoInicial] = useState('')
 
   const [movOpen, setMovOpen] = useState(false)
@@ -143,6 +143,13 @@ export default function Caja() {
     setTotal(Number(data?.paginacion?.total ?? data?.total ?? 0))
     setAbiertos(Number(data?.resumen?.abiertos ?? 0))
   }, [limit, offset, sucursalId, estado, qDebounced])
+
+  useEffect(() => {
+    if (!sucursalFijada()) return
+    const id = sucursalAsignada()
+    setSucursalId(id)
+    setFormSucursal(id)
+  }, [])
 
   useEffect(() => {
     setOffset(0)
@@ -317,7 +324,7 @@ export default function Caja() {
             <Button
               className="gap-2"
               onClick={() => {
-                setFormSucursal(sucursalId)
+                setFormSucursal(sucursalFijada() ? sucursalAsignada() : sucursalId)
                 setMontoInicial('')
                 setAbrirOpen(true)
               }}
@@ -432,8 +439,8 @@ export default function Caja() {
             <Buscador value={q} onChange={setQ} placeholder="Buscar sucursal o cajero…" />
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <select className={selectClass} aria-label="Sucursal" value={sucursalId} onChange={(e) => setSucursalId(e.target.value)}>
-              <option value="">Todas las sucursales</option>
+            <select className={selectClass} aria-label="Sucursal" value={sucursalId} disabled={sucursalFijada()} onChange={(e) => setSucursalId(e.target.value)}>
+              {sucursalFijada() ? null : <option value="">Todas las sucursales</option>}
               {sucursales.map((s) => (
                 <option key={field(s, 'ID')} value={field(s, 'ID')}>
                   {field(s, 'Nombre')}
@@ -528,8 +535,8 @@ export default function Caja() {
           <form onSubmit={handleAbrir} className="grid gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="sucursalTurno">Sucursal</Label>
-              <select id="sucursalTurno" className={selectClass} value={formSucursal} onChange={(e) => setFormSucursal(e.target.value)}>
-                <option value="">Selecciona</option>
+              <select id="sucursalTurno" className={selectClass} value={formSucursal} disabled={sucursalFijada()} onChange={(e) => setFormSucursal(e.target.value)}>
+                {sucursalFijada() ? null : <option value="">Selecciona</option>}
                 {sucursales.map((s) => (
                   <option key={field(s, 'ID')} value={field(s, 'ID')}>
                     {field(s, 'Nombre')}

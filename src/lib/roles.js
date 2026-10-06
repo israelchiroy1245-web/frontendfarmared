@@ -76,3 +76,13 @@ export function puedeModulo(modulo, rol = getRol()) {
 export function inicioDe(rol = getRol()) {
   return INICIO[String(rol || '').toUpperCase()] || '/'
 }
+
+export function sucursalAsignada() {
+  const user = getUser()
+  const id = user?.sucursalId ?? user?.sucursal_id ?? user?.SUCURSAL_ID
+  return id == null || id === '' ? '' : String(id)
+}
+
+export function sucursalFijada() {
+  return getRol() === 'CAJERO'
+}

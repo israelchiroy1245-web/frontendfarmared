@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
 import { getUser } from '@/lib/auth'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -95,9 +95,10 @@ export default function Ventas() {
   const [params] = useSearchParams()
   const usuario = getUser()
   const [sucursales, setSucursales] = useState([])
-  const [sucursalId, setSucursalId] = useState(
-    () => params.get('sucursal') || String(usuario?.sucursalId || ''),
-  )
+  const [sucursalId, setSucursalId] = useState(() => {
+    if (sucursalFijada()) return sucursalAsignada()
+    return params.get('sucursal') || String(usuario?.sucursalId || '')
+  })
   const [turno, setTurno] = useState(null)
   const [cajaCerrada, setCajaCerrada] = useState(false)
   const [busqueda, setBusqueda] = useState('')
@@ -141,6 +142,10 @@ export default function Ventas() {
   }, [loadCatalogos])
 
   useEffect(() => {
+    if (sucursalFijada()) {
+      setSucursalId(sucursalAsignada())
+      return
+    }
     const desdeUrl = params.get('sucursal')
     if (desdeUrl) setSucursalId(desdeUrl)
   }, [params])
@@ -323,8 +328,8 @@ export default function Ventas() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select className={selectClass} aria-label="Sucursal" value={sucursalId} onChange={(e) => setSucursalId(e.target.value)}>
-            <option value="">Sucursal</option>
+          <select className={selectClass} aria-label="Sucursal" value={sucursalId} disabled={sucursalFijada()} onChange={(e) => setSucursalId(e.target.value)}>
+            {sucursalFijada() ? null : <option value="">Sucursal</option>}
             {sucursales.map((s) => (
               <option key={field(s, 'ID')} value={field(s, 'ID')}>{field(s, 'Nombre')}</option>
             ))}
