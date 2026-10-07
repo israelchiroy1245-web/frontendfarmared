@@ -88,6 +88,14 @@ export default function Login() {
           </Button>
         </form>
       </div>
+      <button
+        type="button"
+        onClick={() => navigate('/presentacion')}
+        className="fixed bottom-4 left-4 text-sm text-sidebar-foreground/80 hover:text-sidebar-foreground"
+      >
+        Presentación
+      </button>
     </div>
+    
   )
 }

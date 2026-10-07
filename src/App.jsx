@@ -20,6 +20,7 @@ import Pedidos from './pages/Pedidos'
 import Reportes from './pages/Reportes'
 import { getToken } from './lib/auth'
 import { inicioDe, puedeModulo } from './lib/roles'
+import { Presentacion } from './pages/Presentacion'
 
 function RequireAuth() {
   if (!getToken()) return <Navigate to="/login" replace />
@@ -47,6 +48,7 @@ export default function App() {
       <Toaster richColors position="top-right" />
       <Routes>
         <Route element={<PublicOnly />}>
+          <Route path="/presentacion" element={<Presentacion />} />
           <Route path="/login" element={<Login />} />
         </Route>
         <Route element={<RequireAuth />}>
@@ -67,7 +69,6 @@ export default function App() {
             <Route path="call-center" element={<Guard modulo="callCenter"><CallCenter /></Guard>} />
             <Route path="entregas" element={<Guard modulo="entregas"><Pedidos /></Guard>} />
             <Route path="reportes" element={<Guard modulo="reportes"><Reportes /></Guard>} />
-
           </Route>
         </Route>
         <Route path="*" element={<Navigate to={inicioDe()} replace />} />
