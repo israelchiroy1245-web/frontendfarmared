@@ -185,12 +185,27 @@ export default function Proveedores() {
     setSaving(true)
     try {
       await api(`/api/proveedores/${id}`, { method: 'DELETE' })
-      toast.success('Proveedor eliminado')
+      toast.success('Proveedor desactivado')
       setDeleteOpen(false)
       setDeleteTarget(null)
       await loadProveedores()
     } catch (err) {
-      toast.error(err.message || 'No se pudo eliminar el proveedor')
+      toast.error(err.message || 'No se pudo desactivar el proveedor')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleReactivar(row) {
+    const id = field(row, 'ID')
+    if (!id) return
+    setSaving(true)
+    try {
+      await api(`/api/proveedores/${id}`, { method: 'PATCH', body: { estado: 'ACTIVO' } })
+      toast.success('Proveedor reactivado')
+      await loadProveedores()
+    } catch (err) {
+      toast.error(err.message || 'No se pudo reactivar el proveedor')
     } finally {
       setSaving(false)
     }
@@ -218,7 +233,7 @@ export default function Proveedores() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · Proveedores</p>
           <h1 className="font-display text-3xl">Proveedores</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Catálogo de distribuidores y laboratorios. Un proveedor con facturas de compra no se puede eliminar.
+            Catálogo de distribuidores y laboratorios. La baja es lógica. Un inactivo no sale en el combo de compras.
           </p>
         </div>
         {mantener ? (
@@ -261,6 +276,7 @@ export default function Proveedores() {
                   <TableHead>NIT</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead>Facturas</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -269,12 +285,17 @@ export default function Proveedores() {
                 {proveedores.map((row) => {
                   const id = field(row, 'ID')
                   const facturas = Number(field(row, 'TOTAL_COMPRAS') ?? 0)
+                  const estado = String(field(row, 'ESTADO') || 'ACTIVO').toUpperCase()
+                  const activo = estado === 'ACTIVO'
                   return (
                     <TableRow key={id}>
                       <TableCell className="font-medium">{field(row, 'NOMBRE') || '—'}</TableCell>
                       <TableCell>{field(row, 'NIT') || '—'}</TableCell>
                       <TableCell>{field(row, 'TELEFONO') || '—'}</TableCell>
                       <TableCell>{field(row, 'EMAIL') || '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant={activo ? 'ok' : 'danger'}>{activo ? 'Activo' : 'Inactivo'}</Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{facturas}</Badge>
                       </TableCell>
@@ -288,19 +309,29 @@ export default function Proveedores() {
                               <Pencil className="h-4 w-4" />
                             </Button>
                           ) : null}
-                          {mantener ? (
+                          {mantener && activo ? (
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon-sm"
-                              title={facturas > 0 ? 'Tiene facturas; no se puede eliminar' : 'Eliminar'}
-                              disabled={facturas > 0}
+                              title="Desactivar"
                               onClick={() => {
                                 setDeleteTarget(row)
                                 setDeleteOpen(true)
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                          {mantener && !activo ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={saving}
+                              onClick={() => handleReactivar(row)}
+                            >
+                              Reactivar
                             </Button>
                           ) : null}
                         </div>
@@ -409,18 +440,20 @@ export default function Proveedores() {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Eliminar proveedor</DialogTitle>
-            <DialogDescription>Solo se elimina si no tiene facturas de compra.</DialogDescription>
+            <DialogTitle>Desactivar proveedor</DialogTitle>
+            <DialogDescription>
+              El proveedor deja de aparecer en compras. Las facturas no se borran.
+            </DialogDescription>
           </DialogHeader>
           <p className="text-sm">
-            ¿Eliminar <span className="font-medium">{field(deleteTarget, 'NOMBRE')}</span>?
+            ¿Desactivar <span className="font-medium">{field(deleteTarget, 'NOMBRE')}</span>?
           </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)} disabled={saving}>
               Cancelar
             </Button>
             <Button type="button" variant="destructive" onClick={handleDelete} disabled={saving}>
-              {saving ? 'Eliminando…' : 'Eliminar'}
+              {saving ? 'Desactivando…' : 'Desactivar'}
             </Button>
           </DialogFooter>
         </DialogContent>
