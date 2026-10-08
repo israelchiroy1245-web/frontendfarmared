@@ -3,16 +3,16 @@ import { getToken, getUser } from './auth'
 /** Quién puede entrar al módulo. El API sigue siendo quien responde 403. */
 export const MODULOS = {
   tablero: ['ADMIN', 'QF', 'AUDITOR'],
-  sucursales: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'CALL_CENTER'],
-  inventario: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR'],
-  compras: ['ADMIN', 'QF'],
-  proveedores: ['ADMIN', 'QF', 'AUDITOR'],
-  ventas: ['ADMIN', 'CAJERO', 'AUDITOR'],
-  transferencias: ['ADMIN', 'QF', 'AUDITOR'],
-  caja: ['ADMIN', 'CAJERO', 'AUDITOR'],
+  sucursales: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'CALL_CENTER', 'ENCARGADO'],
+  inventario: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'ENCARGADO'],
+  compras: ['ADMIN', 'QF', 'ENCARGADO'],
+  proveedores: ['ADMIN', 'QF', 'AUDITOR', 'ENCARGADO'],
+  ventas: ['ADMIN', 'CAJERO', 'AUDITOR', 'ENCARGADO'],
+  transferencias: ['ADMIN', 'QF', 'AUDITOR', 'ENCARGADO'],
+  caja: ['ADMIN', 'CAJERO', 'AUDITOR', 'ENCARGADO'],
   activos: ['ADMIN', 'QF', 'AUDITOR'],
   planilla: ['ADMIN', 'AUDITOR'],
-  entregas: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'CALL_CENTER'],
+  entregas: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'CALL_CENTER', 'ENCARGADO'],
   callCenter: ['ADMIN', 'CALL_CENTER'],
   reportes: ['ADMIN', 'QF', 'AUDITOR'],
   usuarios: ['ADMIN'],
@@ -24,6 +24,7 @@ const INICIO = {
   ADMIN: '/',
   CAJERO: '/ventas',
   QF: '/inventario',
+  ENCARGADO: '/inventario',
   AUDITOR: '/caja',
   CALL_CENTER: '/call-center',
 }
@@ -84,5 +85,6 @@ export function sucursalAsignada() {
 }
 
 export function sucursalFijada() {
-  return getRol() === 'CAJERO'
+  const r = getRol()
+  return r === 'CAJERO' || r === 'ENCARGADO' || r === 'QF'
 }

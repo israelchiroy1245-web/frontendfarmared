@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import Buscador from '@/components/Buscador'
 import { api } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -45,12 +45,17 @@ function lineaVacia() {
 
 function puedeGestionar() {
   const rol = getRol()
-  return rol === 'ADMIN' || rol === 'QF'
+  return rol === 'ADMIN' || rol === 'QF' || rol === 'ENCARGADO'
 }
 
 function puedeRecibir() {
   const rol = getRol()
-  return rol === 'ADMIN' || rol === 'QF'
+  return rol === 'ADMIN' || rol === 'QF' || rol === 'ENCARGADO'
+}
+
+function origenFijo() {
+  const rol = getRol()
+  return rol === 'ENCARGADO' || rol === 'QF'
 }
 
 function badgeEstado(estado) {
@@ -74,10 +79,12 @@ function etiquetaEstado(estado) {
 export default function Transferencias() {
   const gestionar = puedeGestionar()
   const recibir = puedeRecibir()
+  const local = sucursalFijada()
+  const fijaOrigen = origenFijo()
   const [rows, setRows] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [medicamentos, setMedicamentos] = useState([])
-  const [sucursalId, setSucursalId] = useState('')
+  const [sucursalId, setSucursalId] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [estado, setEstado] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
@@ -164,7 +171,7 @@ export default function Transferencias() {
   }, [loadTransferencias])
 
   function abrirAlta() {
-    setOrigenId(sucursalId)
+    setOrigenId(fijaOrigen ? sucursalAsignada() : sucursalId)
     setDestinoId('')
     setObservacion('')
     setLineas([lineaVacia()])
@@ -345,9 +352,10 @@ export default function Transferencias() {
               className={selectClass}
               aria-label="Sucursal"
               value={sucursalId}
+              disabled={local}
               onChange={(e) => setSucursalId(e.target.value)}
             >
-              <option value="">Todas las sucursales</option>
+              {local ? null : <option value="">Todas las sucursales</option>}
               {sucursales.map((s) => (
                 <option key={field(s, 'ID')} value={field(s, 'ID')}>
                   {field(s, 'Nombre')}
@@ -454,9 +462,10 @@ export default function Transferencias() {
                   id="origenId"
                   className={selectClass}
                   value={origenId}
+                  disabled={fijaOrigen}
                   onChange={(e) => setOrigenId(e.target.value)}
                 >
-                  <option value="">Selecciona</option>
+                  {fijaOrigen ? null : <option value="">Selecciona</option>}
                   {sucursales.map((s) => (
                     <option key={field(s, 'ID')} value={field(s, 'ID')}>
                       {field(s, 'Nombre')}
@@ -473,7 +482,9 @@ export default function Transferencias() {
                   onChange={(e) => setDestinoId(e.target.value)}
                 >
                   <option value="">Selecciona</option>
-                  {sucursales.map((s) => (
+                  {sucursales
+                    .filter((s) => !fijaOrigen || String(field(s, 'ID')) !== sucursalAsignada())
+                    .map((s) => (
                     <option key={field(s, 'ID')} value={field(s, 'ID')}>
                       {field(s, 'Nombre')}
                     </option>
@@ -598,9 +609,19 @@ export default function Transferencias() {
                 </TableBody>
               </Table>
 
-              {(gestionar && estadoDetalle === 'SOLICITADA') || (recibir && estadoDetalle === 'EN_TRANSITO') ? (
+              {(() => {
+                const origenDetalle = String(field(detail, 'SUCURSAL_ORIGEN_ID') || '')
+                const destinoDetalle = String(field(detail, 'SUCURSAL_DESTINO_ID') || '')
+                const mia = sucursalAsignada()
+                const esAdmin = getRol() === 'ADMIN'
+                const puedeEnviarEsta = gestionar && (esAdmin || origenDetalle === mia)
+                const puedeRecibirEsta = recibir && (esAdmin || destinoDetalle === mia)
+                if (!(puedeEnviarEsta && estadoDetalle === 'SOLICITADA') && !(puedeRecibirEsta && estadoDetalle === 'EN_TRANSITO')) {
+                  return null
+                }
+                return (
                 <DialogFooter className="gap-2 sm:justify-start">
-                  {gestionar && estadoDetalle === 'SOLICITADA' ? (
+                  {puedeEnviarEsta && estadoDetalle === 'SOLICITADA' ? (
                     <>
                       <Button disabled={acting} onClick={() => handleAccion('enviar')}>
                         {acting ? 'Procesando…' : 'Enviar (descontar origen)'}
@@ -610,13 +631,14 @@ export default function Transferencias() {
                       </Button>
                     </>
                   ) : null}
-                  {recibir && estadoDetalle === 'EN_TRANSITO' ? (
+                  {puedeRecibirEsta && estadoDetalle === 'EN_TRANSITO' ? (
                     <Button disabled={acting} onClick={() => handleAccion('recibir')}>
                       {acting ? 'Procesando…' : 'Recibir en destino'}
                     </Button>
                   ) : null}
                 </DialogFooter>
-              ) : null}
+                )
+              })()}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">Cargando…</p>

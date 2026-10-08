@@ -485,7 +485,7 @@ export default function Usuarios() {
                       <TableCell className="text-sm">{cargo || '—'}</TableCell>
                       <TableCell className="text-sm">{sucursal || '—'}</TableCell>
                       <TableCell className="text-sm">{salario != null ? gtq(salario) : '—'}</TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{fmtDate(ingreso)}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{ingreso ? new Date(ingreso).toLocaleDateString() : '—'}</TableCell>
                       <TableCell>
                         <Badge variant={activo ? 'ok' : 'danger'}>
                           {activo ? 'Activo' : String(estado ?? 'Inactivo')}
@@ -586,7 +586,16 @@ export default function Usuarios() {
                 id="rolId"
                 className={selectClass}
                 value={form.rolId}
-                onChange={(e) => setFormField('rolId', e.target.value)}
+                onChange={(e) => {
+                  const rolId = e.target.value
+                  const elegido = roles.find((r) => String(field(r, 'ID', 'Id')) === rolId)
+                  const nombre = String(field(elegido, 'Nombre', 'nombre') || '').toUpperCase()
+                  setForm((prev) => ({
+                    ...prev,
+                    rolId,
+                    cargo: nombre === 'ENCARGADO' ? 'Encargado de sucursal' : prev.cargo,
+                  }))
+                }}
                 required
               >
                 <option value="">Selecciona un rol</option>

@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -43,16 +43,17 @@ function lineaVacia() {
 
 function puedeRegistrar() {
   const rol = getRol()
-  return rol === 'ADMIN' || rol === 'QF'
+  return rol === 'ADMIN' || rol === 'QF' || rol === 'ENCARGADO'
 }
 
 export default function Compras() {
   const registrar = puedeRegistrar()
+  const local = sucursalFijada()
   const [compras, setCompras] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [proveedores, setProveedores] = useState([])
   const [medicamentos, setMedicamentos] = useState([])
-  const [sucursalId, setSucursalId] = useState('')
+  const [sucursalId, setSucursalId] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [proveedorId, setProveedorId] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
@@ -68,7 +69,7 @@ export default function Compras() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [numeroFactura, setNumeroFactura] = useState('')
-  const [formSucursal, setFormSucursal] = useState('')
+  const [formSucursal, setFormSucursal] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [formProveedor, setFormProveedor] = useState('')
   const [lineas, setLineas] = useState([lineaVacia()])
 
@@ -279,8 +280,8 @@ export default function Compras() {
             <Buscador value={q} onChange={setQ} placeholder="Buscar factura, proveedor o sucursal…" />
           </div>
           <div className="grid gap-2 sm:grid-cols-4">
-            <select className={selectClass} aria-label="Sucursal" value={sucursalId} onChange={(e) => setSucursalId(e.target.value)}>
-              <option value="">Todas las sucursales</option>
+            <select className={selectClass} aria-label="Sucursal" value={sucursalId} disabled={local} onChange={(e) => setSucursalId(e.target.value)}>
+              {local ? null : <option value="">Todas las sucursales</option>}
               {sucursales.map((s) => (
                 <option key={field(s, 'ID')} value={field(s, 'ID')}>
                   {field(s, 'Nombre')}
@@ -382,8 +383,8 @@ export default function Compras() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="formSucursal">Sucursal que recibe</Label>
-                <select id="formSucursal" className={selectClass} value={formSucursal} onChange={(e) => setFormSucursal(e.target.value)}>
-                  <option value="">Selecciona</option>
+                <select id="formSucursal" className={selectClass} value={formSucursal} disabled={local} onChange={(e) => setFormSucursal(e.target.value)}>
+                  {local ? null : <option value="">Selecciona</option>}
                   {sucursales.map((s) => (
                     <option key={field(s, 'ID')} value={field(s, 'ID')}>
                       {field(s, 'Nombre')}

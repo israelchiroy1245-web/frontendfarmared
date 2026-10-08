@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, fmtDate, gtq } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 import Paginacion from '@/components/Paginacion'
 
@@ -48,7 +48,7 @@ const emptyForm = {
 
 function puedeEscribir() {
   const rol = getRol()
-  return rol === 'ADMIN' || rol === 'QF'
+  return rol === 'ADMIN' || rol === 'QF' || rol === 'ENCARGADO'
 }
 
 function Kpi({ icon: Icon, label, value, hint }) {
@@ -70,12 +70,13 @@ function Kpi({ icon: Icon, label, value, hint }) {
 
 export default function Inventario() {
   const escribir = puedeEscribir()
+  const local = sucursalFijada()
   const [vista, setVista] = useState('lotes')
   const [lotes, setLotes] = useState([])
   const [kardex, setKardex] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [medicamentos, setMedicamentos] = useState([])
-  const [sucursalId, setSucursalId] = useState('')
+  const [sucursalId, setSucursalId] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [soloBajo, setSoloBajo] = useState(false)
   const [q, setQ] = useState('')
   const qDebounced = useDebounced(q)
@@ -287,14 +288,24 @@ export default function Inventario() {
     return <p className="text-destructive">No se pudo cargar el inventario: {error}</p>
   }
 
+  const nombreSucursal =
+    field(
+      sucursales.find((s) => String(field(s, 'ID')) === String(sucursalId)),
+      'Nombre',
+    ) || 'tu sucursal'
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Red · Inventario</p>
-          <h1 className="font-display text-3xl">Inventario y lotes</h1>
+          <h1 className="font-display text-3xl">
+            {local ? `Lotes de ${nombreSucursal}` : 'Inventario y lotes'}
+          </h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Stock por sucursal, lote y vencimiento. Las salidas automáticas usan FEFO.
+            {local
+              ? 'Existencias de este local, por lote y vencimiento. Las salidas automáticas usan FEFO.'
+              : 'Stock por sucursal, lote y vencimiento. Las salidas automáticas usan FEFO.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -337,6 +348,7 @@ export default function Inventario() {
             <select
               className={selectClass}
               value={sucursalId}
+              disabled={local}
               onChange={(e) => {
                 setSucursalId(e.target.value)
                 setOffsetLotes(0)
@@ -344,7 +356,7 @@ export default function Inventario() {
               }}
               aria-label="Sucursal"
             >
-              <option value="">Todas las sucursales</option>
+              {local ? null : <option value="">Todas las sucursales</option>}
               {sucursales.map((s) => {
                 const id = field(s, 'ID')
                 return (
@@ -504,7 +516,7 @@ export default function Inventario() {
           <form onSubmit={handleCreate} className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="sucursalId">Sucursal</Label>
-              <select id="sucursalId" className={selectClass} value={form.sucursalId} onChange={(e) => setFormField('sucursalId', e.target.value)}>
+              <select id="sucursalId" className={selectClass} value={form.sucursalId} disabled={local} onChange={(e) => setFormField('sucursalId', e.target.value)}>
                 <option value="">Selecciona</option>
                 {sucursales.map((s) => (
                   <option key={field(s, 'ID')} value={field(s, 'ID')}>
