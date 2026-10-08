@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ArrowRightLeft, Eye, Plus, Trash2, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -82,6 +83,7 @@ export default function Transferencias() {
   const recibir = puedeRecibir()
   const local = sucursalFijada()
   const fijaOrigen = origenFijo()
+  const [params] = useSearchParams()
   const [rows, setRows] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [medicamentos, setMedicamentos] = useState([])
@@ -170,6 +172,23 @@ export default function Transferencias() {
       alive = false
     }
   }, [loadTransferencias])
+
+  useEffect(() => {
+    const destino = params.get('destinoId')
+    const med = params.get('medicamentoId')
+    if (!destino && !med) return
+    const origenQuery = params.get('origenId')
+    const propio = sucursalAsignada()
+    if (fijaOrigen) {
+      setOrigenId(propio || '')
+    } else if (origenQuery) {
+      setOrigenId(origenQuery)
+    }
+    if (destino) setDestinoId(destino)
+    if (med) setLineas([{ medicamentoId: String(med), cantidad: '6' }])
+    setObservacion('')
+    setFormOpen(true)
+  }, [params, fijaOrigen])
 
   function abrirAlta() {
     setOrigenId(fijaOrigen ? sucursalAsignada() : sucursalId)

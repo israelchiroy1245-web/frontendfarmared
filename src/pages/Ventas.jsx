@@ -76,12 +76,14 @@ function agruparStock(filas) {
         cantidad,
         fechaVencimiento: fecha,
         precio: Number(field(row, 'PRECIO_VENTA') || 0),
+        receta: Number(field(row, 'RECETA_REQUERIDA')) === 1,
         lotes: 1,
       })
       continue
     }
     actual.cantidad += cantidad
     actual.lotes += 1
+    if (Number(field(row, 'RECETA_REQUERIDA')) === 1) actual.receta = true
     if (fecha && (!actual.fechaVencimiento || fecha < actual.fechaVencimiento)) {
       actual.fechaVencimiento = fecha
       actual.lote = lote || actual.lote
@@ -223,11 +225,14 @@ export default function Ventas() {
   function agregar(med) {
     const id = med.medicamentoId
     const precio = Number(med.precio || 0)
+    if (med.receta) {
+      toast.message('Requiere receta (MSPAS). El cobro no se bloquea.')
+    }
     setCarrito((prev) => {
       const ya = prev.find((linea) => linea.medicamentoId === id)
       if (ya) {
         return prev.map((linea) => (
-          linea.medicamentoId === id ? { ...linea, cantidad: linea.cantidad + 1 } : linea
+          linea.medicamentoId === id ? { ...linea, cantidad: linea.cantidad + 1, receta: linea.receta || med.receta } : linea
         ))
       }
       return [...prev, {
@@ -235,6 +240,7 @@ export default function Ventas() {
         nombre: med.nombre || 'Medicamento',
         precio,
         cantidad: 1,
+        receta: Boolean(med.receta),
       }]
     })
     setBusqueda('')
@@ -394,7 +400,10 @@ export default function Ventas() {
               ) : carrito.map((linea) => (
                 <div key={linea.medicamentoId} className="flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium">{linea.nombre}</p>
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      {linea.nombre}
+                      {linea.receta ? <Badge variant="warn">Receta</Badge> : null}
+                    </p>
                     <p className="text-xs text-muted-foreground">{gtq(linea.precio)}</p>
                   </div>
                   <div className="flex items-center gap-1">

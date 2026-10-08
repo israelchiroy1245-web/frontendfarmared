@@ -86,7 +86,7 @@ export default function Inventario() {
   const [offsetKardex, setOffsetKardex] = useState(0)
   const [totalLotes, setTotalLotes] = useState(0)
   const [totalKardex, setTotalKardex] = useState(0)
-  const [resumen, setResumen] = useState({ bajos: 0, vencidos: 0 })
+  const [resumen, setResumen] = useState({ bajos: 0, vencidos: 0, porVencer: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -129,6 +129,7 @@ export default function Inventario() {
     setResumen({
       bajos: Number(data?.resumen?.bajos ?? 0),
       vencidos: Number(data?.resumen?.vencidos ?? 0),
+      porVencer: Number(data?.resumen?.porVencer ?? 0),
     })
   }, [sucursalId, soloBajo, qDebounced, limit, offsetLotes])
 
@@ -178,7 +179,7 @@ export default function Inventario() {
   }, [vista, loadLotes, loadKardex])
 
   const filtrados = vista === 'kardex' ? kardex : lotes
-  const stats = { total: totalLotes, bajos: resumen.bajos, vencidos: resumen.vencidos }
+  const stats = { total: totalLotes, bajos: resumen.bajos, vencidos: resumen.vencidos, porVencer: resumen.porVencer }
 
   useEffect(() => {
     setOffsetLotes(0)
@@ -331,9 +332,10 @@ export default function Inventario() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={Package} label="Lotes" value={stats.total} hint="Total con el filtro actual" />
         <Kpi icon={AlertTriangle} label="Stock bajo" value={stats.bajos} hint="Cantidad en o bajo el mínimo" />
+        <Kpi icon={AlertTriangle} label="Por vencer" value={stats.porVencer} hint="Vence en 90 días o menos" />
         <Kpi icon={AlertTriangle} label="Vencidos" value={stats.vencidos} hint="Fecha de vencimiento pasada" />
       </div>
 
@@ -434,6 +436,7 @@ export default function Inventario() {
                   const cantidad = Number(field(row, 'Cantidad') || 0)
                   const bajo = Number(field(row, 'STOCK_BAJO') || 0) === 1
                   const vencido = Number(field(row, 'VENCIDO') || 0) === 1
+                  const porVencer = Number(field(row, 'POR_VENCER') || 0) === 1
                   return (
                     <TableRow key={id}>
                       <TableCell>
@@ -449,8 +452,9 @@ export default function Inventario() {
                       <TableCell>{field(row, 'FECHA_VENCIMIENTO') || '—'}</TableCell>
                       <TableCell>
                         {vencido ? <Badge variant="danger">Vencido</Badge> : null}
+                        {!vencido && porVencer ? <Badge variant="warn">Por vencer</Badge> : null}
                         {bajo ? <Badge variant="warn">Stock bajo</Badge> : null}
-                        {!vencido && !bajo ? <Badge variant="ok">Ok</Badge> : null}
+                        {!vencido && !porVencer && !bajo ? <Badge variant="ok">Ok</Badge> : null}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
