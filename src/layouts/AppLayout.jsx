@@ -235,8 +235,8 @@ export default function AppLayout() {
     return () => media.removeEventListener('change', sync)
   }, [])
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logout()
     setOpen(false)
     toast.success('Sesión cerrada')
     navigate('/login', { replace: true })

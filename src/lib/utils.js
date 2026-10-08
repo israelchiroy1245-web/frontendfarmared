@@ -1,5 +1,6 @@
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { getRefreshToken, getToken, guardarTokens, limpiarSesion } from './sesionCliente'
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs))
@@ -36,7 +37,44 @@ export function downloadCsv(filename, rows, columns) {
   URL.revokeObjectURL(url)
 }
 
-export async function api(path, options = {}) {
+let refrescoEnCurso = null
+
+function rutaSinRefresco(path) {
+  const ruta = String(path)
+  return ruta.includes('/api/auth/login') || ruta.includes('/api/auth/refresh')
+}
+
+function irAlLogin() {
+  limpiarSesion()
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login')
+  }
+}
+
+function refrescarAccess() {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return Promise.resolve(false)
+  if (!refrescoEnCurso) {
+    refrescoEnCurso = fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || !data?.token || !data?.refreshToken) return false
+        guardarTokens(data.token, data.refreshToken)
+        return true
+      })
+      .catch(() => false)
+      .finally(() => {
+        refrescoEnCurso = null
+      })
+  }
+  return refrescoEnCurso
+}
+
+export async function api(path, options = {}, reintento = false) {
   const { method = 'GET', body, query, headers } = options
   const url = new URL(path, window.location.origin)
   if (query) {
@@ -45,7 +83,7 @@ export async function api(path, options = {}) {
     })
   }
 
-  const token = localStorage.getItem('token')
+  const token = getToken()
   const res = await fetch(url.pathname + url.search, {
     method,
     headers: {
@@ -57,12 +95,12 @@ export async function api(path, options = {}) {
   })
 
   const data = await res.json().catch(() => ({}))
-  if (res.status === 401 && token && !String(path).includes('/api/auth/login')) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    if (window.location.pathname !== '/login') {
-      window.location.assign('/login')
+  if (res.status === 401 && !rutaSinRefresco(path)) {
+    if (!reintento) {
+      const renovado = await refrescarAccess()
+      if (renovado) return api(path, options, true)
     }
+    irAlLogin()
   }
   if (!res.ok) {
     throw new Error(data.error || data.message || data.msg || `Error ${res.status}`)
