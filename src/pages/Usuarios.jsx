@@ -142,6 +142,7 @@ export default function Usuarios() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
+  const [sucursalFiltro, setSucursalFiltro] = useState('')
   const qDebounced = useDebounced(q)
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
@@ -168,6 +169,7 @@ export default function Usuarios() {
   const loadUsuarios = useCallback(async () => {
     const query = { limit, offset }
     if (qDebounced.trim()) query.q = qDebounced.trim()
+    if (sucursalFiltro) query.sucursalId = sucursalFiltro
     const data = await api('/api/usuarios', { query })
     setUsuarios(Array.isArray(data?.usuarios) ? data.usuarios : [])
     setTotal(Number(data?.paginacion?.total ?? 0))
@@ -176,11 +178,11 @@ export default function Usuarios() {
       roles: Number(data?.resumen?.roles ?? 0),
       conSucursal: Number(data?.resumen?.conSucursal ?? 0),
     })
-  }, [limit, offset, qDebounced])
+  }, [limit, offset, qDebounced, sucursalFiltro])
 
   useEffect(() => {
     setOffset(0)
-  }, [qDebounced, limit])
+  }, [qDebounced, limit, sucursalFiltro])
 
   useEffect(() => {
     let alive = true
@@ -406,7 +408,12 @@ export default function Usuarios() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Users} label="Usuarios registrados" value={stats.total} hint="Total en F_Usuarios" />
+        <Kpi
+          icon={Users}
+          label="Usuarios registrados"
+          value={stats.total}
+          hint={sucursalFiltro ? 'Empleados de la sucursal filtrada' : 'Total en F_Usuarios'}
+        />
         <Kpi icon={UserCheck} label="Activos" value={stats.activos} hint={`${stats.inactivos} inactivos`} />
         <Kpi icon={Shield} label="Roles distintos" value={stats.roles} hint="Catálogo de F_Roles" />
         <Kpi
@@ -425,16 +432,38 @@ export default function Usuarios() {
               {total} registros
             </CardDescription>
           </div>
-          <Buscador
-            value={q}
-            onChange={setQ}
-            placeholder="Buscar nombre, email, rol…"
-          />
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <select
+              className={`${selectClass} sm:w-64`}
+              aria-label="Sucursal"
+              value={sucursalFiltro}
+              onChange={(e) => setSucursalFiltro(e.target.value)}
+            >
+              <option value="">Todas las sucursales</option>
+              {sucursales.map((s) => {
+                const id = field(s, 'ID', 'Id')
+                const codigo = field(s, 'Codigo', 'codigo')
+                const nombre = field(s, 'Nombre', 'nombre')
+                return (
+                  <option key={id} value={id}>
+                    {codigo ? `${codigo} · ${nombre}` : nombre}
+                  </option>
+                )
+              })}
+            </select>
+            <Buscador
+              value={q}
+              onChange={setQ}
+              placeholder="Buscar nombre, email, rol…"
+            />
+          </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {filtrados.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No hay usuarios que coincidan con la búsqueda.
+              {sucursalFiltro
+                ? 'No hay empleados en esa sucursal.'
+                : 'No hay usuarios que coincidan con la búsqueda.'}
             </p>
           ) : (
             <Table>
