@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button, buttonVariants } from '@/components/ui/button'
 import Buscador from '@/components/Buscador'
+import SelectorBusqueda from '@/components/SelectorBusqueda'
 import Paginacion from '@/components/Paginacion'
 import {
   Dialog,
@@ -535,14 +536,18 @@ export default function Caja() {
           <form onSubmit={handleAbrir} className="grid gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="sucursalTurno">Sucursal</Label>
-              <select id="sucursalTurno" className={selectClass} value={formSucursal} disabled={sucursalFijada()} onChange={(e) => setFormSucursal(e.target.value)}>
-                {sucursalFijada() ? null : <option value="">Selecciona</option>}
-                {sucursales.map((s) => (
-                  <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                    {field(s, 'Nombre')}
-                  </option>
-                ))}
-              </select>
+              <SelectorBusqueda
+                id="sucursalTurno"
+                items={sucursales.map((s) => ({
+                  value: String(field(s, 'ID')),
+                  label: field(s, 'Nombre') || '',
+                  hint: field(s, 'Codigo') || '',
+                }))}
+                value={formSucursal}
+                onChange={setFormSucursal}
+                placeholder="Buscar sucursal"
+                disabled={sucursalFijada()}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="fondoInicial">Fondo inicial</Label>

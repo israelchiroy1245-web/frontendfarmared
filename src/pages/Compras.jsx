@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import Buscador from '@/components/Buscador'
+import SelectorBusqueda from '@/components/SelectorBusqueda'
 import Paginacion from '@/components/Paginacion'
 import {
   Dialog,
@@ -372,25 +373,32 @@ export default function Compras() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="formProveedor">Proveedor</Label>
-                <select id="formProveedor" className={selectClass} value={formProveedor} onChange={(e) => setFormProveedor(e.target.value)}>
-                  <option value="">Selecciona</option>
-                  {proveedores.map((p) => (
-                    <option key={field(p, 'ID')} value={field(p, 'ID')}>
-                      {field(p, 'Nombre')}
-                    </option>
-                  ))}
-                </select>
+                <SelectorBusqueda
+                  id="formProveedor"
+                  items={proveedores.map((p) => ({
+                    value: String(field(p, 'ID')),
+                    label: field(p, 'Nombre') || '',
+                    hint: field(p, 'NIT') || '',
+                  }))}
+                  value={formProveedor}
+                  onChange={setFormProveedor}
+                  placeholder="Buscar proveedor"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="formSucursal">Sucursal que recibe</Label>
-                <select id="formSucursal" className={selectClass} value={formSucursal} disabled={local} onChange={(e) => setFormSucursal(e.target.value)}>
-                  {local ? null : <option value="">Selecciona</option>}
-                  {sucursales.map((s) => (
-                    <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                      {field(s, 'Nombre')}
-                    </option>
-                  ))}
-                </select>
+                <SelectorBusqueda
+                  id="formSucursal"
+                  items={sucursales.map((s) => ({
+                    value: String(field(s, 'ID')),
+                    label: field(s, 'Nombre') || '',
+                    hint: field(s, 'Codigo') || '',
+                  }))}
+                  value={formSucursal}
+                  onChange={setFormSucursal}
+                  placeholder="Buscar sucursal"
+                  disabled={local}
+                />
               </div>
             </div>
 
@@ -399,14 +407,16 @@ export default function Compras() {
                 <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-6">
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label>Medicamento</Label>
-                    <select className={selectClass} value={linea.medicamentoId} onChange={(e) => setLinea(index, 'medicamentoId', e.target.value)}>
-                      <option value="">Selecciona</option>
-                      {medicamentos.map((m) => (
-                        <option key={field(m, 'ID')} value={field(m, 'ID')}>
-                          {field(m, 'NOMBRE_MEDICAMENTO')}
-                        </option>
-                      ))}
-                    </select>
+                    <SelectorBusqueda
+                      items={medicamentos.map((m) => ({
+                        value: String(field(m, 'ID')),
+                        label: field(m, 'NOMBRE_MEDICAMENTO') || '',
+                        hint: field(m, 'CODIGO_BARRA') || '',
+                      }))}
+                      value={linea.medicamentoId}
+                      onChange={(id) => setLinea(index, 'medicamentoId', id)}
+                      placeholder="Buscar medicamento"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Cantidad</Label>

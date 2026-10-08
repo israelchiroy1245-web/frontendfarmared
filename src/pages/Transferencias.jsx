@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import Buscador from '@/components/Buscador'
+import SelectorBusqueda from '@/components/SelectorBusqueda'
 import { api } from '@/lib/utils'
 import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
@@ -458,38 +459,34 @@ export default function Transferencias() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="origenId">Sucursal origen</Label>
-                <select
+                <SelectorBusqueda
                   id="origenId"
-                  className={selectClass}
+                  items={sucursales.map((s) => ({
+                    value: String(field(s, 'ID')),
+                    label: field(s, 'Nombre') || '',
+                    hint: field(s, 'Codigo') || '',
+                  }))}
                   value={origenId}
+                  onChange={setOrigenId}
+                  placeholder="Buscar sucursal origen"
                   disabled={fijaOrigen}
-                  onChange={(e) => setOrigenId(e.target.value)}
-                >
-                  {fijaOrigen ? null : <option value="">Selecciona</option>}
-                  {sucursales.map((s) => (
-                    <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                      {field(s, 'Nombre')}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="destinoId">Sucursal destino</Label>
-                <select
+                <SelectorBusqueda
                   id="destinoId"
-                  className={selectClass}
-                  value={destinoId}
-                  onChange={(e) => setDestinoId(e.target.value)}
-                >
-                  <option value="">Selecciona</option>
-                  {sucursales
+                  items={sucursales
                     .filter((s) => !fijaOrigen || String(field(s, 'ID')) !== sucursalAsignada())
-                    .map((s) => (
-                    <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                      {field(s, 'Nombre')}
-                    </option>
-                  ))}
-                </select>
+                    .map((s) => ({
+                      value: String(field(s, 'ID')),
+                      label: field(s, 'Nombre') || '',
+                      hint: field(s, 'Codigo') || '',
+                    }))}
+                  value={destinoId}
+                  onChange={setDestinoId}
+                  placeholder="Buscar sucursal destino"
+                />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -507,18 +504,16 @@ export default function Transferencias() {
                 <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4">
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label>Medicamento</Label>
-                    <select
-                      className={selectClass}
+                    <SelectorBusqueda
+                      items={medicamentos.map((m) => ({
+                        value: String(field(m, 'ID')),
+                        label: field(m, 'NOMBRE_MEDICAMENTO') || '',
+                        hint: field(m, 'CODIGO_BARRA') || '',
+                      }))}
                       value={linea.medicamentoId}
-                      onChange={(e) => setLinea(index, 'medicamentoId', e.target.value)}
-                    >
-                      <option value="">Selecciona</option>
-                      {medicamentos.map((m) => (
-                        <option key={field(m, 'ID')} value={field(m, 'ID')}>
-                          {field(m, 'NOMBRE_MEDICAMENTO')}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(id) => setLinea(index, 'medicamentoId', id)}
+                      placeholder="Buscar medicamento"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Cantidad</Label>

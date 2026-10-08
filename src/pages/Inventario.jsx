@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import Buscador from '@/components/Buscador'
+import SelectorBusqueda from '@/components/SelectorBusqueda'
 import {
   Dialog,
   DialogContent,
@@ -516,25 +517,32 @@ export default function Inventario() {
           <form onSubmit={handleCreate} className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="sucursalId">Sucursal</Label>
-              <select id="sucursalId" className={selectClass} value={form.sucursalId} disabled={local} onChange={(e) => setFormField('sucursalId', e.target.value)}>
-                <option value="">Selecciona</option>
-                {sucursales.map((s) => (
-                  <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                    {field(s, 'Nombre')}
-                  </option>
-                ))}
-              </select>
+              <SelectorBusqueda
+                id="sucursalId"
+                items={sucursales.map((s) => ({
+                  value: String(field(s, 'ID')),
+                  label: field(s, 'Nombre') || '',
+                  hint: field(s, 'Codigo') || '',
+                }))}
+                value={form.sucursalId}
+                onChange={(id) => setFormField('sucursalId', id)}
+                placeholder="Buscar sucursal"
+                disabled={local}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="medicamentoId">Medicamento</Label>
-              <select id="medicamentoId" className={selectClass} value={form.medicamentoId} onChange={(e) => setFormField('medicamentoId', e.target.value)}>
-                <option value="">Selecciona</option>
-                {medicamentos.map((m) => (
-                  <option key={field(m, 'ID')} value={field(m, 'ID')}>
-                    {field(m, 'NOMBRE_MEDICAMENTO')}
-                  </option>
-                ))}
-              </select>
+              <SelectorBusqueda
+                id="medicamentoId"
+                items={medicamentos.map((m) => ({
+                  value: String(field(m, 'ID')),
+                  label: field(m, 'NOMBRE_MEDICAMENTO') || '',
+                  hint: field(m, 'CODIGO_BARRA') || '',
+                }))}
+                value={form.medicamentoId}
+                onChange={(id) => setFormField('medicamentoId', id)}
+                placeholder="Buscar medicamento"
+              />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
