@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Download } from 'lucide-react'
+import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import Buscador from '@/components/Buscador'
 import Paginacion from '@/components/Paginacion'
-import { api, gtq } from '@/lib/utils'
+import { api, downloadCsv, gtq } from '@/lib/utils'
 import { getRol } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
@@ -35,6 +38,16 @@ const REPORTES = [
 const selectClass =
   'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
+const TOPE_CSV = 2000
+const PAGINA_CSV = 100
+
+function hoyIso() {
+  const d = new Date()
+  const mes = String(d.getMonth() + 1).padStart(2, '0')
+  const dia = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mes}-${dia}`
+}
+
 function rol() {
   return getRol()
 }
@@ -63,6 +76,7 @@ export default function Reportes() {
   const [datos, setDatos] = useState(null)
   const [filas, setFilas] = useState([])
   const [loading, setLoading] = useState(true)
+  const [exportando, setExportando] = useState(false)
   const [error, setError] = useState(null)
   const reqId = useRef(0)
   const actual = REPORTES.find((item) => item.id === reporte) || REPORTES[0]
@@ -141,14 +155,166 @@ export default function Reportes() {
   const nomina = reporte === 'planilla' && Array.isArray(datos?.desglose) ? datos.desglose : []
   const activos = reporte === 'activos' && Array.isArray(datos?.desglose) ? datos.desglose : []
 
+  function columnasCsv() {
+    if (reporte === 'consolidado') {
+      return [
+        { label: 'Sucursal', value: (row) => row.nombre },
+        { label: 'Tipo', value: (row) => row.tipo },
+        { label: 'Inventario', value: (row) => row.inventarioCosto },
+        { label: 'Activos', value: (row) => row.activosLibros },
+        { label: 'Total', value: (row) => row.totalSucursal },
+      ]
+    }
+    if (reporte === 'ventas') {
+      return [
+        { label: 'Sucursal', value: (row) => field(row, 'SUCURSAL_NOMBRE') },
+        { label: 'Tickets', value: (row) => field(row, 'TOTAL_TRANSACCIONES') },
+        { label: 'Efectivo', value: (row) => field(row, 'VENTAS_EFECTIVO') },
+        { label: 'Tarjeta', value: (row) => field(row, 'VENTAS_TARJETA') },
+        { label: 'Transferencia', value: (row) => field(row, 'VENTAS_TRANSFERENCIA') },
+        { label: 'Total', value: (row) => field(row, 'TOTAL_VENTAS') },
+      ]
+    }
+    if (reporte === 'inventario') {
+      return [
+        { label: 'Sucursal', value: (row) => field(row, 'SUCURSAL_NOMBRE') },
+        { label: 'Medicamento', value: (row) => field(row, 'MEDICAMENTO_NOMBRE') },
+        { label: 'Lote', value: (row) => field(row, 'LOTE') },
+        { label: 'Vence', value: (row) => field(row, 'FECHA_VENCIMIENTO') },
+        { label: 'Días', value: (row) => field(row, 'DIAS_RESTANTES') },
+        { label: 'Cant.', value: (row) => field(row, 'CANTIDAD') },
+        { label: 'Costo', value: (row) => field(row, 'VALOR_COSTO') },
+      ]
+    }
+    if (reporte === 'caja') {
+      return [
+        { label: 'Sucursal', value: (row) => field(row, 'SUCURSAL_NOMBRE') },
+        { label: 'Cajero', value: (row) => field(row, 'CAJERO_NOMBRE') },
+        { label: 'Estado', value: (row) => field(row, 'ESTADO') },
+        { label: 'Esperado', value: (row) => field(row, 'ESPERADO_EN_CAJA') },
+        { label: 'Contado', value: (row) => field(row, 'MONTO_CONTADO') },
+        { label: 'Diferencia', value: (row) => field(row, 'DIFERENCIA') },
+      ]
+    }
+    if (reporte === 'planilla') {
+      return [
+        { label: 'Periodo', value: (row) => field(row, 'PERIODO') },
+        { label: 'Sucursal', value: (row) => field(row, 'SUCURSAL_NOMBRE') },
+        { label: 'Empleados', value: (row) => field(row, 'TOTAL_EMPLEADOS') },
+        { label: 'IGSS', value: (row) => field(row, 'TOTAL_IGSS') },
+        { label: 'A pagar', value: (row) => field(row, 'TOTAL_A_PAGAR') },
+        { label: 'Pendientes', value: (row) => field(row, 'EMPLEADOS_PENDIENTES') },
+      ]
+    }
+    if (reporte === 'activos') {
+      return [
+        { label: 'Sucursal', value: (row) => field(row, 'SUCURSAL_NOMBRE') },
+        { label: 'Categoría', value: (row) => field(row, 'CATEGORIA') },
+        { label: 'Activos', value: (row) => field(row, 'TOTAL_ACTIVOS') },
+        { label: 'Adquisición', value: (row) => field(row, 'TOTAL_ADQUISICION') },
+        { label: 'Depreciación', value: (row) => field(row, 'TOTAL_DEPRECIACION') },
+        { label: 'Libros', value: (row) => field(row, 'VALOR_LIBROS') },
+      ]
+    }
+    if (reporte === 'kardex') {
+      return [
+        { label: 'Fecha', value: (row) => field(row, 'FECHA') },
+        { label: 'Sucursal', value: (row) => field(row, 'SUCURSAL_NOMBRE') },
+        { label: 'Medicamento', value: (row) => field(row, 'MEDICAMENTO_NOMBRE') },
+        { label: 'Tipo', value: (row) => field(row, 'TIPO') },
+        { label: 'Lote', value: (row) => field(row, 'LOTE') },
+        { label: 'Cant.', value: (row) => field(row, 'CANTIDAD') },
+        { label: 'Referencia', value: (row) => field(row, 'REFERENCIA') },
+      ]
+    }
+    return [
+      { label: 'Fecha', value: (row) => field(row, 'FECHA') },
+      { label: 'Tabla', value: (row) => field(row, 'TABLA') },
+      { label: 'Acción', value: (row) => field(row, 'ACCION') },
+      { label: 'Usuario', value: (row) => field(row, 'USUARIO_NOMBRE') || field(row, 'USUARIO_ORACLE') },
+      { label: 'Anterior', value: (row) => field(row, 'DATOS_ANTERIORES') },
+      { label: 'Nuevo', value: (row) => field(row, 'DATOS_NUEVOS') },
+    ]
+  }
+
+  function filasEnMemoria() {
+    if (reporte === 'consolidado') return desgloseRed
+    if (reporte === 'ventas') return ventasFilas
+    if (reporte === 'inventario') return lotes
+    if (reporte === 'caja') return turnos
+    if (reporte === 'planilla') return nomina
+    if (reporte === 'activos') return activos
+    return filas
+  }
+
+  function queryFiltro({ limit: lim, offset: off, paginar }) {
+    const query = {}
+    if (['ventas', 'caja', 'activos', 'kardex'].includes(reporte) && sucursalId) query.sucursalId = sucursalId
+    if (['ventas', 'caja', 'kardex', 'auditoria'].includes(reporte)) {
+      if (desde) query.desde = desde
+      if (hasta) query.hasta = hasta
+    }
+    if (reporte === 'planilla' && periodo) query.periodo = periodo
+    if (reporte === 'inventario') query.dias = dias || 90
+    if (paginar) {
+      query.limit = lim
+      query.offset = off
+      if (qDebounced.trim()) query.q = qDebounced.trim()
+    }
+    return query
+  }
+
+  async function juntarPaginas() {
+    const rows = []
+    let offsetPag = 0
+    let totalApi = Infinity
+    while (rows.length < TOPE_CSV && offsetPag < totalApi) {
+      const data = await api(actual.path, {
+        query: queryFiltro({ limit: PAGINA_CSV, offset: offsetPag, paginar: true }),
+      })
+      const lote = Array.isArray(data?.datos) ? data.datos : []
+      totalApi = Number(data?.paginacion?.total ?? data?.total ?? rows.length + lote.length)
+      rows.push(...lote)
+      if (lote.length < PAGINA_CSV) break
+      offsetPag += PAGINA_CSV
+    }
+    return { rows: rows.slice(0, TOPE_CSV), tope: totalApi > TOPE_CSV }
+  }
+
+  async function handleExportar() {
+    if (!permitido || exportando) return
+    setExportando(true)
+    try {
+      const juntadas = paginado ? await juntarPaginas() : { rows: filasEnMemoria(), tope: false }
+      if (!juntadas.rows.length) {
+        toast.error('No hay filas para exportar')
+        return
+      }
+      downloadCsv(`farmared-${reporte}-${hoyIso()}.csv`, juntadas.rows, columnasCsv())
+      if (juntadas.tope) toast.success('Se exportaron las primeras 2000 filas')
+    } catch (err) {
+      toast.error(err.message || 'No se pudo exportar el reporte')
+    } finally {
+      setExportando(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Dirección · Reportes</p>
-        <h1 className="font-display text-3xl">Reportes gerenciales</h1>
-        <p className="mt-1 max-w-2xl text-muted-foreground">
-          El consolidado suma inventario a costo y activos en libros. El tablero del inicio sigue en su propia pantalla.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Dirección · Reportes</p>
+          <h1 className="font-display text-3xl">Reportes gerenciales</h1>
+          <p className="mt-1 max-w-2xl text-muted-foreground">
+            El consolidado suma inventario a costo y activos en libros. El tablero del inicio sigue en su propia pantalla.
+          </p>
+        </div>
+        {permitido ? (
+          <Button type="button" variant="outline" className="gap-2" onClick={handleExportar} disabled={exportando || loading}>
+            <Download className="h-4 w-4" />
+            {exportando ? 'Exportando…' : 'Exportar CSV'}
+          </Button>
+        ) : null}
       </div>
 
       <Card>
