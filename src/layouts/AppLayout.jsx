@@ -40,6 +40,7 @@ const links = [
     icon: Package,
     modulo: 'inventario',
     children: [
+      { to: '/inventario/medicamentos', label: 'Medicamentos', icon: Package, modulo: 'medicamentos' },
       { to: '/inventario/compras', label: 'Compras', icon: ShoppingCart, modulo: 'compras' },
       { to: '/inventario/proveedores', label: 'Proveedores', icon: Truck, modulo: 'proveedores' },
     ],

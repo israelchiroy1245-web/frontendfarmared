@@ -7,6 +7,7 @@ export const MODULOS = {
   inventario: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'ENCARGADO'],
   compras: ['ADMIN', 'QF', 'ENCARGADO'],
   proveedores: ['ADMIN', 'QF', 'AUDITOR', 'ENCARGADO'],
+  medicamentos: ['ADMIN', 'QF', 'AUDITOR', 'ENCARGADO'],
   ventas: ['ADMIN', 'CAJERO', 'AUDITOR', 'ENCARGADO'],
   transferencias: ['ADMIN', 'QF', 'AUDITOR', 'ENCARGADO'],
   caja: ['ADMIN', 'CAJERO', 'AUDITOR', 'ENCARGADO'],

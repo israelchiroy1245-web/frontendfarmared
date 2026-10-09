@@ -10,6 +10,7 @@ import Permisos from './pages/Permisos'
 import Inventario from './pages/Inventario'
 import Compras from './pages/Compras'
 import Proveedores from './pages/Proveedores'
+import Medicamentos from './pages/Medicamentos'
 import Ventas from './pages/Ventas'
 import Transferencias from './pages/Transferencias'
 import Caja from './pages/Caja'
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="sucursales" element={<Guard modulo="sucursales"><Sucursales /></Guard>} />
             <Route path="inventario" element={<Guard modulo="inventario"><Inventario /></Guard>} />
             <Route path="inventario/compras" element={<Guard modulo="compras"><Compras /></Guard>} />
+            <Route path="inventario/medicamentos" element={<Guard modulo="medicamentos"><Medicamentos /></Guard>} />
             <Route path="inventario/proveedores" element={<Guard modulo="proveedores"><Proveedores /></Guard>} />
             <Route path="ventas" element={<Guard modulo="ventas"><Ventas /></Guard>} />
             <Route path="transferencias" element={<Guard modulo="transferencias"><Transferencias /></Guard>} />
