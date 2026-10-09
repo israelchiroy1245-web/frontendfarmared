@@ -11,6 +11,7 @@ node_modules
 docs
 .env
 .cursor
+.env.example
 Script1.sql
 ScriptInformacion.sql
 
