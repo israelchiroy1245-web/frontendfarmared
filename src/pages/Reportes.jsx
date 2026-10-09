@@ -32,8 +32,25 @@ const REPORTES = [
   { id: 'planilla', label: 'Planilla', path: '/api/reportes/planilla', roles: ['ADMIN', 'AUDITOR'] },
   { id: 'activos', label: 'Activos', path: '/api/reportes/activos', roles: ['ADMIN', 'AUDITOR', 'QF'] },
   { id: 'kardex', label: 'Kardex', path: '/api/reportes/kardex', roles: ['ADMIN', 'AUDITOR', 'QF'] },
-  { id: 'auditoria', label: 'Auditoría', path: '/api/reportes/auditoria', roles: ['ADMIN', 'AUDITOR'] },
+  { id: 'auditoria', label: 'Auditoría', path: '/api/reportes/auditoria', roles: ['ADMIN', 'AUDITOR', 'QF'] },
 ]
+
+const TABLAS_AUDITORIA = [
+  'F_Medicamentos',
+  'F_Proveedores',
+  'F_Inventario',
+  'F_Ventas',
+  'F_Usuarios',
+  'F_Empleados',
+  'F_Sucursal',
+  'F_Turno_caja',
+]
+const ACCIONES_AUDITORIA = ['INSERT', 'UPDATE', 'DELETE']
+const ESTADOS_TURNO = ['ABIERTA', 'CERRADA', 'AUDITADA']
+const CATEGORIAS_ACTIVO = ['MOBILIARIO', 'EQUIPO', 'VEHICULO', 'INMUEBLE', 'TECNOLOGIA']
+const TIPOS_KARDEX = ['ENTRADA', 'VENTA', 'SALIDA', 'AJUSTE', 'ANULACION']
+const CON_SUCURSAL = ['ventas', 'inventario', 'caja', 'planilla', 'activos', 'kardex']
+const CON_FECHAS = ['ventas', 'caja', 'kardex', 'auditoria']
 
 const selectClass =
   'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -68,6 +85,14 @@ export default function Reportes() {
   const [hasta, setHasta] = useState('')
   const [periodo, setPeriodo] = useState('')
   const [dias, setDias] = useState('90')
+  const [tabla, setTabla] = useState('')
+  const [accion, setAccion] = useState('')
+  const [estadoTurno, setEstadoTurno] = useState('')
+  const [categoria, setCategoria] = useState('')
+  const [tipoMov, setTipoMov] = useState('')
+  const [medicamentoId, setMedicamentoId] = useState('')
+  const [medicamentos, setMedicamentos] = useState([])
+  const [extra, setExtra] = useState(null)
   const [q, setQ] = useState('')
   const qDebounced = useDebounced(q)
   const [limit, setLimit] = useState(50)
@@ -81,40 +106,63 @@ export default function Reportes() {
   const reqId = useRef(0)
   const actual = REPORTES.find((item) => item.id === reporte) || REPORTES[0]
   const permitido = actual.roles.includes(usuario)
-  const paginado = reporte === 'kardex' || reporte === 'auditoria'
+  const paginado = reporte === 'kardex' || reporte === 'auditoria' || reporte === 'inventario'
 
   const loadSucursales = useCallback(async () => {
-    const suc = await api('/api/catalogos/sucursales')
+    const [suc, meds] = await Promise.all([
+      api('/api/catalogos/sucursales'),
+      api('/api/catalogos/medicamentos'),
+    ])
     setSucursales(Array.isArray(suc?.datos) ? suc.datos : [])
+    setMedicamentos(Array.isArray(meds?.datos) ? meds.datos : [])
   }, [])
 
-  const loadReporte = useCallback(async () => {
-    const id = ++reqId.current
+  function armarQuery({ paginar, lim, off }) {
     const query = {}
-    if (['ventas', 'caja', 'activos', 'kardex'].includes(reporte) && sucursalId) query.sucursalId = sucursalId
-    if (['ventas', 'caja', 'kardex', 'auditoria'].includes(reporte)) {
+    if (CON_SUCURSAL.includes(reporte) && sucursalId) query.sucursalId = sucursalId
+    if (CON_FECHAS.includes(reporte)) {
       if (desde) query.desde = desde
       if (hasta) query.hasta = hasta
     }
     if (reporte === 'planilla' && periodo) query.periodo = periodo
     if (reporte === 'inventario') query.dias = dias || 90
-    if (paginado) {
-      query.limit = limit
-      query.offset = offset
+    if (reporte === 'caja' && estadoTurno) query.estado = estadoTurno
+    if (reporte === 'activos' && categoria) query.categoria = categoria
+    if (reporte === 'kardex') {
+      if (tipoMov) query.tipo = tipoMov
+      if (medicamentoId) query.medicamentoId = medicamentoId
+    }
+    if (reporte === 'auditoria') {
+      if (tabla) query.tabla = tabla
+      if (accion) query.accion = accion
+    }
+    if (paginar) {
+      query.limit = lim
+      query.offset = off
       if (qDebounced.trim()) query.q = qDebounced.trim()
     }
+    return query
+  }
+
+  const loadReporte = useCallback(async () => {
+    const id = ++reqId.current
+    const query = armarQuery({ paginar: paginado, lim: limit, off: offset })
     const data = await api(actual.path, { query })
     if (id !== reqId.current) return
     if (paginado) {
       setFilas(Array.isArray(data?.datos) ? data.datos : [])
       setDatos(null)
       setTotal(Number(data?.paginacion?.total ?? data?.total ?? 0))
+      setExtra(reporte === 'inventario'
+        ? { filtroDias: data?.filtroDias, valorEnRiesgo: data?.valorEnRiesgo }
+        : null)
     } else {
       setDatos(data?.datos || null)
       setFilas([])
       setTotal(0)
+      setExtra(null)
     }
-  }, [reporte, sucursalId, desde, hasta, periodo, dias, limit, offset, qDebounced, paginado, actual.path])
+  }, [reporte, sucursalId, desde, hasta, periodo, dias, tabla, accion, estadoTurno, categoria, tipoMov, medicamentoId, limit, offset, qDebounced, paginado, actual.path])
 
   useEffect(() => {
     loadSucursales().catch(() => {})
@@ -122,7 +170,7 @@ export default function Reportes() {
 
   useEffect(() => {
     setOffset(0)
-  }, [reporte, sucursalId, desde, hasta, periodo, dias, qDebounced, limit])
+  }, [reporte, sucursalId, desde, hasta, periodo, dias, tabla, accion, estadoTurno, categoria, tipoMov, medicamentoId, qDebounced, limit])
 
   useEffect(() => {
     if (!permitido) {
@@ -150,7 +198,6 @@ export default function Reportes() {
   const patrimonio = datos?.resumenPatrimonial
   const desgloseRed = Array.isArray(datos?.desglosePorSucursal) ? datos.desglosePorSucursal : []
   const ventasFilas = Array.isArray(datos?.sucursales) ? datos.sucursales : []
-  const lotes = Array.isArray(datos?.lotes) ? datos.lotes : []
   const turnos = Array.isArray(datos?.turnos) ? datos.turnos : []
   const nomina = reporte === 'planilla' && Array.isArray(datos?.desglose) ? datos.desglose : []
   const activos = reporte === 'activos' && Array.isArray(datos?.desglose) ? datos.desglose : []
@@ -172,6 +219,7 @@ export default function Reportes() {
         { label: 'Efectivo', value: (row) => field(row, 'VENTAS_EFECTIVO') },
         { label: 'Tarjeta', value: (row) => field(row, 'VENTAS_TARJETA') },
         { label: 'Transferencia', value: (row) => field(row, 'VENTAS_TRANSFERENCIA') },
+        { label: 'Vuelto', value: (row) => field(row, 'VUELTO') },
         { label: 'Total', value: (row) => field(row, 'TOTAL_VENTAS') },
       ]
     }
@@ -240,7 +288,7 @@ export default function Reportes() {
   function filasEnMemoria() {
     if (reporte === 'consolidado') return desgloseRed
     if (reporte === 'ventas') return ventasFilas
-    if (reporte === 'inventario') return lotes
+    if (reporte === 'inventario') return filas
     if (reporte === 'caja') return turnos
     if (reporte === 'planilla') return nomina
     if (reporte === 'activos') return activos
@@ -248,20 +296,7 @@ export default function Reportes() {
   }
 
   function queryFiltro({ limit: lim, offset: off, paginar }) {
-    const query = {}
-    if (['ventas', 'caja', 'activos', 'kardex'].includes(reporte) && sucursalId) query.sucursalId = sucursalId
-    if (['ventas', 'caja', 'kardex', 'auditoria'].includes(reporte)) {
-      if (desde) query.desde = desde
-      if (hasta) query.hasta = hasta
-    }
-    if (reporte === 'planilla' && periodo) query.periodo = periodo
-    if (reporte === 'inventario') query.dias = dias || 90
-    if (paginar) {
-      query.limit = lim
-      query.offset = off
-      if (qDebounced.trim()) query.q = qDebounced.trim()
-    }
-    return query
+    return armarQuery({ paginar, lim, off })
   }
 
   async function juntarPaginas() {
@@ -332,7 +367,7 @@ export default function Reportes() {
                 <option key={item.id} value={item.id}>{item.label}</option>
               ))}
             </select>
-            {['ventas', 'caja', 'activos', 'kardex'].includes(reporte) ? (
+            {CON_SUCURSAL.includes(reporte) ? (
               <select className={selectClass} aria-label="Sucursal" value={sucursalId} onChange={(e) => setSucursalId(e.target.value)}>
                 <option value="">Todas las sucursales</option>
                 {sucursales.map((s) => (
@@ -346,10 +381,60 @@ export default function Reportes() {
             {reporte === 'inventario' ? (
               <Input type="number" min="1" aria-label="Días" value={dias} onChange={(e) => setDias(e.target.value)} />
             ) : null}
-            {['ventas', 'caja', 'kardex', 'auditoria'].includes(reporte) ? (
+            {CON_FECHAS.includes(reporte) ? (
               <>
                 <Input type="date" aria-label="Desde" value={desde} onChange={(e) => setDesde(e.target.value)} />
                 <Input type="date" aria-label="Hasta" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+              </>
+            ) : null}
+            {reporte === 'caja' ? (
+              <select className={selectClass} aria-label="Estado del turno" value={estadoTurno} onChange={(e) => setEstadoTurno(e.target.value)}>
+                <option value="">Todos los estados</option>
+                {ESTADOS_TURNO.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+            ) : null}
+            {reporte === 'activos' ? (
+              <select className={selectClass} aria-label="Categoría" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+                <option value="">Todas las categorías</option>
+                {CATEGORIAS_ACTIVO.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+            ) : null}
+            {reporte === 'kardex' ? (
+              <>
+                <select className={selectClass} aria-label="Tipo de movimiento" value={tipoMov} onChange={(e) => setTipoMov(e.target.value)}>
+                  <option value="">Todos los tipos</option>
+                  {TIPOS_KARDEX.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+                <select className={selectClass} aria-label="Medicamento" value={medicamentoId} onChange={(e) => setMedicamentoId(e.target.value)}>
+                  <option value="">Todos los medicamentos</option>
+                  {medicamentos.map((med) => (
+                    <option key={field(med, 'ID')} value={field(med, 'ID')}>
+                      {field(med, 'NOMBRE_MEDICAMENTO')}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : null}
+            {reporte === 'auditoria' ? (
+              <>
+                <select className={selectClass} aria-label="Tabla" value={tabla} onChange={(e) => setTabla(e.target.value)}>
+                  <option value="">Todas las tablas</option>
+                  {TABLAS_AUDITORIA.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+                <select className={selectClass} aria-label="Acción" value={accion} onChange={(e) => setAccion(e.target.value)}>
+                  <option value="">Todas las acciones</option>
+                  {ACCIONES_AUDITORIA.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
               </>
             ) : null}
           </div>
@@ -383,13 +468,14 @@ export default function Reportes() {
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Total de la red {gtq(datos?.totalVentasRed)}</p>
               <TablaSimple
-                headers={['Sucursal', 'Tickets', 'Efectivo', 'Tarjeta', 'Transferencia', 'Total']}
+                headers={['Sucursal', 'Tickets', 'Efectivo', 'Tarjeta', 'Transferencia', 'Vuelto', 'Total']}
                 rows={ventasFilas.map((row) => [
                   field(row, 'SUCURSAL_NOMBRE'),
                   field(row, 'TOTAL_TRANSACCIONES'),
                   gtq(field(row, 'VENTAS_EFECTIVO')),
                   gtq(field(row, 'VENTAS_TARJETA')),
                   gtq(field(row, 'VENTAS_TRANSFERENCIA')),
+                  gtq(field(row, 'VUELTO')),
                   gtq(field(row, 'TOTAL_VENTAS')),
                 ])}
               />
@@ -398,11 +484,11 @@ export default function Reportes() {
           {!loading && !error && reporte === 'inventario' ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                {datos?.totalLotesProximos ?? 0} lotes en {datos?.filtroDias ?? dias} días · riesgo {gtq(datos?.valorEnRiesgo)}
+                {total} lotes en {extra?.filtroDias ?? dias} días · riesgo {gtq(extra?.valorEnRiesgo)}
               </p>
               <TablaSimple
                 headers={['Sucursal', 'Medicamento', 'Lote', 'Vence', 'Días', 'Cant.', 'Costo']}
-                rows={lotes.map((row) => [
+                rows={filas.map((row) => [
                   field(row, 'SUCURSAL_NOMBRE'),
                   field(row, 'MEDICAMENTO_NOMBRE'),
                   field(row, 'LOTE'),
@@ -426,8 +512,8 @@ export default function Reportes() {
                   field(row, 'CAJERO_NOMBRE'),
                   field(row, 'ESTADO'),
                   gtq(field(row, 'ESPERADO_EN_CAJA')),
-                  gtq(field(row, 'MONTO_CONTADO')),
-                  gtq(field(row, 'DIFERENCIA')),
+                  field(row, 'MONTO_CONTADO') == null ? '—' : gtq(field(row, 'MONTO_CONTADO')),
+                  field(row, 'DIFERENCIA') == null ? '—' : gtq(field(row, 'DIFERENCIA')),
                 ])}
               />
             </div>
