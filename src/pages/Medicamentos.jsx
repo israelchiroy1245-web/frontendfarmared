@@ -255,7 +255,7 @@ export default function Medicamentos() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Inventario · Medicamentos</p>
           <h1 className="font-display text-3xl">Medicamentos</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Maestro de SKU. El lote se carga después, en compras o inventario.
+            Registro de medicamentos
           </p>
         </div>
         {mantener ? (
@@ -282,10 +282,10 @@ export default function Medicamentos() {
       <Card>
         <CardHeader className="gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <CardTitle>Catálogo</CardTitle>
+            <CardTitle>Catalogo</CardTitle>
             <CardDescription>{total} registros</CardDescription>
           </div>
-          <Buscador value={q} onChange={setQ} placeholder="Buscar nombre, código, principio o laboratorio…" />
+          <Buscador value={q} onChange={setQ} placeholder="Buscar nombre, codigo, principio o laboratorio…" />
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {medicamentos.length === 0 ? (
@@ -295,7 +295,7 @@ export default function Medicamentos() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Código de barras</TableHead>
+                  <TableHead>Codigo de barras</TableHead>
                   <TableHead>Laboratorio</TableHead>
                   <TableHead>Precio venta</TableHead>
                   <TableHead>Receta</TableHead>
@@ -374,7 +374,7 @@ export default function Medicamentos() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{formMode === 'create' ? 'Nuevo medicamento' : 'Editar medicamento'}</DialogTitle>
-            <DialogDescription>El código de barras es único, también si el SKU está inactivo.</DialogDescription>
+            <DialogDescription>El codigo de barras es unico, tambien si el SKU esta inactivo</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave} className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
@@ -382,7 +382,7 @@ export default function Medicamentos() {
               <Input id="nombreMed" value={form.nombre} onChange={(e) => setCampo('nombre', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="codigoMed">Código de barras</Label>
+              <Label htmlFor="codigoMed">Codigo de barras</Label>
               <Input id="codigoMed" value={form.codigoBarra} onChange={(e) => setCampo('codigoBarra', e.target.value)} />
             </div>
             <div className="space-y-1.5">

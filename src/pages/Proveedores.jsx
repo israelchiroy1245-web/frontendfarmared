@@ -230,10 +230,10 @@ export default function Proveedores() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · Proveedores</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operacion · Proveedores</p>
           <h1 className="font-display text-3xl">Proveedores</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Catálogo de distribuidores y laboratorios. La baja es lógica. Un inactivo no sale en el combo de compras.
+            Catalogo de distribuidores y laboratorios
           </p>
         </div>
         {mantener ? (
@@ -260,14 +260,14 @@ export default function Proveedores() {
       <Card>
         <CardHeader className="gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <CardTitle>Catálogo</CardTitle>
+            <CardTitle>Catalogo</CardTitle>
             <CardDescription>{total} registros</CardDescription>
           </div>
           <Buscador value={q} onChange={setQ} placeholder="Buscar nombre, NIT o correo…" />
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {proveedores.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No hay proveedores con ese filtro.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No hay proveedores con ese filtro</p>
           ) : (
             <Table>
               <TableHeader>
@@ -358,7 +358,7 @@ export default function Proveedores() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{formMode === 'create' ? 'Nuevo proveedor' : 'Editar proveedor'}</DialogTitle>
-            <DialogDescription>El NIT es único. Nombre y NIT son obligatorios.</DialogDescription>
+            <DialogDescription>El NIT es unico. El nombre y NIT son obligatorios</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave} className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
@@ -370,7 +370,7 @@ export default function Proveedores() {
               <Input id="nitProveedor" value={form.nit} onChange={(e) => setCampo('nit', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="telProveedor">Teléfono</Label>
+              <Label htmlFor="telProveedor">Telefono</Label>
               <Input id="telProveedor" value={form.telefono} onChange={(e) => setCampo('telefono', e.target.value)} />
             </div>
             <div className="space-y-1.5">
@@ -378,7 +378,7 @@ export default function Proveedores() {
               <Input id="emailProveedor" type="email" value={form.email} onChange={(e) => setCampo('email', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="dirProveedor">Dirección</Label>
+              <Label htmlFor="dirProveedor">Direccion</Label>
               <Input id="dirProveedor" value={form.direccion} onChange={(e) => setCampo('direccion', e.target.value)} />
             </div>
             <DialogFooter className="sm:col-span-2">
@@ -442,7 +442,7 @@ export default function Proveedores() {
           <DialogHeader>
             <DialogTitle>Desactivar proveedor</DialogTitle>
             <DialogDescription>
-              El proveedor deja de aparecer en compras. Las facturas no se borran.
+              El proveedor deja de aparecer en compras pero las facturas no se borran.
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">

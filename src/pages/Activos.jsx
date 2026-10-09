@@ -181,17 +181,17 @@ export default function Activos() {
   async function handleSave(e) {
     e.preventDefault()
     if (!form.codigo.trim() || !form.nombre.trim() || !form.sucursalId) {
-      toast.error('Código, nombre y sucursal son obligatorios')
+      toast.error('Codigo, nombre y sucursal son obligatorios')
       return
     }
     const valor = Number(form.valorAdquisicion)
     const vida = Number(form.vidaUtilMeses)
     if (!Number.isFinite(valor) || valor <= 0) {
-      toast.error('El valor de adquisición debe ser mayor a cero')
+      toast.error('El valor de adquisicion debe ser mayor a cero')
       return
     }
     if (!Number.isFinite(vida) || vida <= 0) {
-      toast.error('La vida útil en meses debe ser mayor a cero')
+      toast.error('La vida util en meses debe ser mayor a cero')
       return
     }
     const body = {
@@ -253,7 +253,7 @@ export default function Activos() {
   }
 
   if (!ver) {
-    return <p className="text-destructive">Tu rol no puede consultar activos fijos.</p>
+    return <p className="text-destructive">Tu rol no puede consultar activos fijos</p>
   }
 
   if (loading && rows.length === 0 && !error) {
@@ -276,7 +276,7 @@ export default function Activos() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Patrimonio · Activos</p>
           <h1 className="font-display text-3xl">Activos fijos</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Valor en libros es adquisición menos depreciación acumulada. La depreciación lineal corre por mes, de la sucursal filtrada o de toda la red.
+            Valor en libros es adquisicion menos depreciacion acumulada la depreciacion lineal corre por mes, de la sucursal filtrada o de toda la red
           </p>
         </div>
         {editar ? (
@@ -293,7 +293,7 @@ export default function Activos() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-            <CardDescription>Adquisición</CardDescription>
+            <CardDescription>Adquisicion</CardDescription>
             <div className="rounded-md bg-secondary p-2 text-primary">
               <Landmark className="h-4 w-4" />
             </div>
@@ -305,7 +305,7 @@ export default function Activos() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Depreciación acumulada</CardDescription>
+            <CardDescription>Depreciacion acumulada</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="font-display text-2xl font-semibold">{gtq(balance?.totalDepreciacion)}</p>
@@ -328,7 +328,7 @@ export default function Activos() {
               <CardTitle>Inventario patrimonial</CardTitle>
               <CardDescription>{total} registros</CardDescription>
             </div>
-            <Buscador value={q} onChange={setQ} placeholder="Buscar código, nombre o sucursal…" />
+            <Buscador value={q} onChange={setQ} placeholder="Buscar codigo, nombre o sucursal…" />
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <select className={selectClass} aria-label="Sucursal" value={sucursalId} onChange={(e) => setSucursalId(e.target.value)}>
@@ -337,8 +337,8 @@ export default function Activos() {
                 <option key={field(s, 'ID')} value={field(s, 'ID')}>{field(s, 'Nombre')}</option>
               ))}
             </select>
-            <select className={selectClass} aria-label="Categoría" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
-              <option value="">Todas las categorías</option>
+            <select className={selectClass} aria-label="Categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+              <option value="">Todas las categorias</option>
               {CATEGORIAS.map((item) => (
                 <option key={item} value={item}>{item}</option>
               ))}
@@ -353,12 +353,12 @@ export default function Activos() {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {rows.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No hay activos con ese filtro.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No hay activos con ese filtro</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Código</TableHead>
+                  <TableHead>Codigo</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Sucursal</TableHead>
                   <TableHead>Categoría</TableHead>
@@ -416,12 +416,12 @@ export default function Activos() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editId ? 'Editar activo' : 'Registrar activo'}</DialogTitle>
-            <DialogDescription>El valor en libros lo calcula el servidor.</DialogDescription>
+            <DialogDescription>El valor en libros lo calcula el servidor</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="codigo">Código</Label>
+                <Label htmlFor="codigo">Codigo</Label>
                 <Input id="codigo" value={form.codigo} disabled={Boolean(editId)} onChange={(e) => setCampo('codigo', e.target.value)} />
               </div>
               <div className="space-y-1.5">
@@ -429,7 +429,7 @@ export default function Activos() {
                 <Input id="nombre" value={form.nombre} onChange={(e) => setCampo('nombre', e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="categoria">Categoría</Label>
+                <Label htmlFor="categoria">Categoria</Label>
                 <select id="categoria" className={selectClass} value={form.categoria} onChange={(e) => setCampo('categoria', e.target.value)}>
                   {CATEGORIAS.map((item) => (
                     <option key={item} value={item}>{item}</option>
@@ -454,7 +454,7 @@ export default function Activos() {
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="valor">Valor de adquisición</Label>
+                <Label htmlFor="valor">Valor de adquisicion</Label>
                 <Input id="valor" type="number" min="0" step="0.01" value={form.valorAdquisicion} onChange={(e) => setCampo('valorAdquisicion', e.target.value)} />
               </div>
               <div className="space-y-1.5">
@@ -462,11 +462,11 @@ export default function Activos() {
                 <Input id="residual" type="number" min="0" step="0.01" value={form.valorResidual} onChange={(e) => setCampo('valorResidual', e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="vida">Vida útil (meses)</Label>
+                <Label htmlFor="vida">Vida util (meses)</Label>
                 <Input id="vida" type="number" min="1" value={form.vidaUtilMeses} onChange={(e) => setCampo('vidaUtilMeses', e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fecha">Fecha de adquisición</Label>
+                <Label htmlFor="fecha">Fecha de adquisicion</Label>
                 <Input id="fecha" type="date" value={form.fechaAdquisicion} onChange={(e) => setCampo('fechaAdquisicion', e.target.value)} />
               </div>
             </div>
@@ -482,7 +482,7 @@ export default function Activos() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Eliminar {field(borrar, 'CODIGO') || 'activo'}</DialogTitle>
-            <DialogDescription>Esta acción quita el activo del inventario patrimonial.</DialogDescription>
+            <DialogDescription>Esta accion quita el activo del inventario patrimonial.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setBorrar(null)} disabled={saving}>Cancelar</Button>

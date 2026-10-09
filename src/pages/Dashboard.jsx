@@ -45,7 +45,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="font-display text-3xl">Tablero ejecutivo</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">
-          Vista consolidada de inventario, efectivo, planilla, activos fijos y entregas a domicilio en las 12 sucursales de la red.
+          Vista consolidada de inventario, efectivo, planilla, activos fijos y entregas a domicilio de las sucursales de la red
         </p>
       </div>
 
@@ -92,7 +92,7 @@ export default function DashboardPage() {
               <AlertTriangle className="h-4 w-4 text-accent" />
               Stock bajo
             </CardTitle>
-            <CardDescription>Quiebre de insulina en stands Puma: reponer con traslado desde un mall.</CardDescription>
+            <CardDescription>Reponer Stock Bajo de Medicamentos</CardDescription>
           </CardHeader>
           <CardContent>
             {data.alertas.length === 0 ? (

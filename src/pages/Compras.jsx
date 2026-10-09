@@ -236,7 +236,7 @@ export default function Compras() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · Compras</p>
           <h1 className="font-display text-3xl">Compras a proveedores</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Recepción de facturas. Cada línea entra al inventario por procesar_compra. La factura queda registrada y no se modifica.
+            Recepcion de facturas, cada línea entra al inventario por compras y la factura queda registrada y no se modifica
           </p>
         </div>
         {registrar ? (
@@ -303,7 +303,7 @@ export default function Compras() {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {compras.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No hay facturas con ese filtro.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No hay facturas con ese filtro</p>
           ) : (
             <Table>
               <TableHeader>
@@ -312,9 +312,9 @@ export default function Compras() {
                   <TableHead>Fecha</TableHead>
                   <TableHead>Proveedor</TableHead>
                   <TableHead>Sucursal</TableHead>
-                  <TableHead>Recibió</TableHead>
+                  <TableHead>Recibio</TableHead>
                   <TableHead>Total</TableHead>
-                  <TableHead>Líneas</TableHead>
+                  <TableHead>Lineas</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -361,9 +361,6 @@ export default function Compras() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Registrar compra</DialogTitle>
-            <DialogDescription>
-              La factura queda en F_Compras y cada línea llama a procesar_compra para subir el lote en la sucursal.
-            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
@@ -449,7 +446,7 @@ export default function Compras() {
                 </div>
               ))}
               <Button type="button" variant="outline" onClick={() => setLineas((prev) => [...prev, lineaVacia()])}>
-                Agregar línea
+                Agregar linea
               </Button>
             </div>
 
@@ -472,7 +469,7 @@ export default function Compras() {
           {detail ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Total {gtq(field(detail, 'TOTAL_COMPRA'))} · Recibió {field(detail, 'EMPLEADO_NOMBRE') || '—'}
+                Total {gtq(field(detail, 'TOTAL_COMPRA'))} · Recibio {field(detail, 'EMPLEADO_NOMBRE') || '—'}
               </p>
               <Table>
                 <TableHeader>

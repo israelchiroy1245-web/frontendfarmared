@@ -307,11 +307,11 @@ export default function Transferencias() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · Transferencias</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operacion · Transferencias</p>
           <h1 className="font-display text-3xl">Transferencias entre sucursales</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Solicitud → envío (descuenta origen por FEFO) → recepción (ingresa destino). Cancelación solo en estado
-            solicitada.
+            Solicitud → envío descuenta origen por FEFO → recepción ingresa a destino y cancelación solo en estado
+            solicitada
           </p>
         </div>
         {gestionar ? (
@@ -325,7 +325,7 @@ export default function Transferencias() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-            <CardDescription>En esta página</CardDescription>
+            <CardDescription>En esta pagina</CardDescription>
             <div className="rounded-md bg-secondary p-2 text-primary">
               <ArrowRightLeft className="h-4 w-4" />
             </div>
@@ -353,7 +353,7 @@ export default function Transferencias() {
           </CardHeader>
           <CardContent>
             <p className="font-display text-2xl font-semibold">{kpiTransito}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Esperando recepción</p>
+            <p className="mt-1 text-xs text-muted-foreground">Esperando recepcion</p>
           </CardContent>
         </Card>
       </div>
@@ -401,7 +401,7 @@ export default function Transferencias() {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {rows.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No hay transferencias con ese filtro.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No hay transferencias con ese filtro</p>
           ) : (
             <Table>
               <TableHeader>
@@ -470,9 +470,6 @@ export default function Transferencias() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Nueva solicitud de transferencia</DialogTitle>
-            <DialogDescription>
-              Queda en estado SOLICITADA. El inventario se mueve al enviar (origen) y al recibir (destino).
-            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -509,7 +506,7 @@ export default function Transferencias() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="observacion">Observación</Label>
+              <Label htmlFor="observacion">Observacion</Label>
               <Input
                 id="observacion"
                 value={observacion}
@@ -558,7 +555,7 @@ export default function Transferencias() {
                 </div>
               ))}
               <Button type="button" variant="outline" onClick={() => setLineas((prev) => [...prev, lineaVacia()])}>
-                Agregar línea
+                Agregar linea
               </Button>
             </div>
 
@@ -587,7 +584,7 @@ export default function Transferencias() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={badgeEstado(estadoDetalle)}>{etiquetaEstado(estadoDetalle)}</Badge>
                 <span className="text-sm text-muted-foreground">
-                  Solicitó {field(detail, 'SOLICITADO_POR_NOMBRE') || '—'} · {field(detail, 'FECHA_SOLICITUD') || '—'}
+                  Solicito {field(detail, 'SOLICITADO_POR_NOMBRE') || '—'} · {field(detail, 'FECHA_SOLICITUD') || '—'}
                 </span>
               </div>
               {field(detail, 'OBSERVACION') ? (
@@ -595,11 +592,11 @@ export default function Transferencias() {
               ) : null}
               <div className="grid gap-2 text-sm sm:grid-cols-2">
                 <p>
-                  <span className="text-muted-foreground">Envío: </span>
+                  <span className="text-muted-foreground">Envio: </span>
                   {field(detail, 'FECHA_ENVIO') || '—'}
                 </p>
                 <p>
-                  <span className="text-muted-foreground">Recepción: </span>
+                  <span className="text-muted-foreground">Recepcion: </span>
                   {field(detail, 'FECHA_RECEPCION') || '—'}
                 </p>
               </div>
@@ -608,7 +605,7 @@ export default function Transferencias() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Medicamento</TableHead>
-                    <TableHead>Código</TableHead>
+                    <TableHead>Codigo</TableHead>
                     <TableHead>Cant.</TableHead>
                   </TableRow>
                 </TableHeader>

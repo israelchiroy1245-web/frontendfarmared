@@ -314,7 +314,7 @@ export default function Caja() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Gerencial · Caja</p>
           <h1 className="font-display text-3xl">Caja y turnos</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Cada sucursal tiene un solo turno abierto. Sin ese turno no se puede cobrar. El esperado es fondo más efectivo menos gastos, y el auditor marca el cierre.
+            Gestionar caja y turnos de las sucursales
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -565,7 +565,7 @@ export default function Caja() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Movimiento de caja</DialogTitle>
-            <DialogDescription>Gasto, retiro o depósito en efectivo. Un gasto se suma al arqueo del turno.</DialogDescription>
+            <DialogDescription>Gasto, retiro o deposito en efectivo este gasto se suma al arqueo del turno</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleMovimiento} className="grid gap-3">
             <div className="space-y-1.5">

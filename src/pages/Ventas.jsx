@@ -190,8 +190,10 @@ export default function Ventas() {
   if (Number(efectivo) > 0) pagosPreview.push(Number(efectivo))
   if (Number(tarjeta) > 0) pagosPreview.push(Number(tarjeta))
   if (Number(transferencia) > 0) pagosPreview.push(Number(transferencia))
-  const recibido = pagosPreview.reduce((suma, n) => suma + n, 0) || estimado
-  const vuelto = Math.max(0, Math.round((recibido - estimado) * 100) / 100)
+  const recibido = pagosPreview.reduce((suma, n) => suma + n, 0)
+  const cubre = carrito.length > 0 && recibido + 0.001 >= estimado
+  const faltante = Math.max(0, Math.round((estimado - recibido) * 100) / 100)
+  const vuelto = cubre ? Math.max(0, Math.round((recibido - estimado) * 100) / 100) : 0
   const puedeCarrito = cobrar && Boolean(turno)
   const consulta = busquedaDebounced.trim()
 
@@ -262,7 +264,10 @@ export default function Ventas() {
     if (Number(efectivo) > 0) pagos.push({ metodoPago: 'EFECTIVO', monto: Number(efectivo) })
     if (Number(tarjeta) > 0) pagos.push({ metodoPago: 'TARJETA', monto: Number(tarjeta) })
     if (Number(transferencia) > 0) pagos.push({ metodoPago: 'TRANSFERENCIA', monto: Number(transferencia) })
-    if (pagos.length === 0) pagos.push({ metodoPago: 'EFECTIVO', monto: estimado })
+    if (pagos.length === 0) {
+      toast.error('Indique efectivo, tarjeta o transferencia')
+      return
+    }
     const suma = pagos.reduce((acc, pago) => acc + pago.monto, 0)
     if (suma + 0.001 < estimado) {
       toast.error('Los pagos no cubren el total')
@@ -278,7 +283,7 @@ export default function Ventas() {
           nit: nit.trim() || 'CF',
           nombreFactura: nombreFactura.trim() || 'Consumidor Final',
           descuento: 0,
-          montoRecibido: Number(efectivo) > 0 ? Number(efectivo) : estimado,
+          montoRecibido: Number(efectivo) > 0 ? Number(efectivo) : 0,
           items: carrito.map((linea) => ({ medicamentoId: linea.medicamentoId, cantidad: linea.cantidad })),
           pagos,
         },
@@ -329,18 +334,15 @@ export default function Ventas() {
         <div>
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · POS</p>
           <h1 className="font-display text-3xl">Punto de venta</h1>
-          <p className="mt-1 max-w-2xl text-muted-foreground">
-            El precio es el de anaquel. El lote lo elige el vencimiento y el cobro entra al turno abierto de la sucursal.
-          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select className={selectClass} aria-label="Sucursal" value={sucursalId} disabled={sucursalFijada()} onChange={(e) => setSucursalId(e.target.value)}>
+        <div className="flex items-center gap-2">
+          <select className={`${selectClass} w-auto max-w-64`} aria-label="Sucursal" value={sucursalId} disabled={sucursalFijada()} onChange={(e) => setSucursalId(e.target.value)}>
             {sucursalFijada() ? null : <option value="">Sucursal</option>}
             {sucursales.map((s) => (
               <option key={field(s, 'ID')} value={field(s, 'ID')}>{field(s, 'Nombre')}</option>
             ))}
           </select>
-          <Link to="/caja" className={buttonVariants({ variant: 'outline' })}>Ver turno</Link>
+          <Link to="/caja" className={`${buttonVariants({ variant: 'outline' })} shrink-0`}>Ver turno</Link>
         </div>
       </div>
 
@@ -348,7 +350,7 @@ export default function Ventas() {
         <Card>
           <CardHeader>
             <CardTitle>Caja cerrada</CardTitle>
-            <CardDescription>Esta sucursal no puede cobrar hasta que alguien abra el turno.</CardDescription>
+            <CardDescription>Esta sucursal no puede cobrar hasta que alguien abra el turno</CardDescription>
           </CardHeader>
           <CardContent>
             <Link to="/caja" className={buttonVariants()}>Ir a caja</Link>
@@ -361,7 +363,7 @@ export default function Ventas() {
           <Card>
             <CardHeader>
               <CardTitle>Carrito</CardTitle>
-              <CardDescription>Busca por nombre o código de barras.</CardDescription>
+              <CardDescription>Busca por nombre o codigo de barras</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="relative">
@@ -369,7 +371,7 @@ export default function Ventas() {
                 <Input className="pl-8" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Nombre o código de barras" />
               </div>
               {busqueda.trim() === consulta && consulta && !buscando && coincidencias.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay existencias en esta sucursal.</p>
+                <p className="text-sm text-muted-foreground">No hay existencias en esta sucursal</p>
               ) : null}
               {coincidencias.length > 0 ? (
                 <div className="rounded-lg border border-border">
@@ -396,7 +398,7 @@ export default function Ventas() {
                 </div>
               ) : null}
               {carrito.length === 0 ? (
-                <p className="text-sm text-muted-foreground">El carrito está vacío.</p>
+                <p className="text-sm text-muted-foreground">El carrito esta vacio</p>
               ) : carrito.map((linea) => (
                 <div key={linea.medicamentoId} className="flex items-center justify-between gap-2">
                   <div>
@@ -445,7 +447,7 @@ export default function Ventas() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="efectivo">Efectivo recibido</Label>
-                    <Input id="efectivo" type="number" min="0" step="0.01" value={efectivo} onChange={(e) => setEfectivo(e.target.value)} placeholder="Total" />
+                    <Input id="efectivo" type="number" min="0" step="0.01" value={efectivo} onChange={(e) => setEfectivo(e.target.value)} placeholder="0.00" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="tarjeta">Tarjeta</Label>
@@ -455,9 +457,17 @@ export default function Ventas() {
                     <Label htmlFor="transferencia">Transferencia</Label>
                     <Input id="transferencia" type="number" min="0" step="0.01" value={transferencia} onChange={(e) => setTransferencia(e.target.value)} />
                   </div>
-                  <p className="self-end text-sm text-muted-foreground">Vuelto {gtq(vuelto)}</p>
+                  <p className="self-end text-sm text-muted-foreground">
+                    {carrito.length === 0
+                      ? 'Agregue productos al carrito'
+                      : pagosPreview.length === 0
+                        ? 'Indique efectivo, tarjeta o transferencia'
+                        : cubre
+                          ? `Vuelto ${gtq(vuelto)}`
+                          : `Falta ${gtq(faltante)}`}
+                  </p>
                 </div>
-                <Button type="submit" disabled={saving || carrito.length === 0}>
+                <Button type="submit" disabled={saving || !cubre}>
                   {saving ? 'Cobrando…' : 'Cobrar'}
                 </Button>
               </form>
@@ -473,7 +483,7 @@ export default function Ventas() {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {ventas.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No hay tickets hoy.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">No hay tickets hoy</p>
           ) : (
             <Table>
               <TableHeader>
@@ -599,7 +609,7 @@ export default function Ventas() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Anular {field(anularTarget, 'FOLIO') || 'ticket'}</DialogTitle>
-            <DialogDescription>El stock vuelve al lote y la caja deshace el cobro.</DialogDescription>
+            <DialogDescription>El stock vuelve al lote y la caja deshace el cobro</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setAnularTarget(null)} disabled={saving}>Cancelar</Button>

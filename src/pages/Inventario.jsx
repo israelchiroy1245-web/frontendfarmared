@@ -307,7 +307,7 @@ export default function Inventario() {
           <p className="mt-1 max-w-2xl text-muted-foreground">
             {local
               ? 'Existencias de este local, por lote y vencimiento. Las salidas automáticas usan FEFO.'
-              : 'Stock por sucursal, lote y vencimiento. Las salidas automáticas usan FEFO.'}
+              : 'Stock por sucursal, lote y vencimiento'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -516,7 +516,7 @@ export default function Inventario() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nuevo lote</DialogTitle>
-            <DialogDescription>Alta en F_Inventario. Si la cantidad es mayor a cero, queda una entrada en el kardex.</DialogDescription>
+            <DialogDescription>Si la cantidad es mayor a cero, queda una entrada en el kardex</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-3">
             <div className="space-y-1.5">
@@ -579,7 +579,7 @@ export default function Inventario() {
           <DialogHeader>
             <DialogTitle>Ajustar stock</DialogTitle>
             <DialogDescription>
-              Nueva cantidad absoluta del lote {field(ajusteTarget, 'Lote')}. Queda registrado como AJUSTE en el kardex.
+              Nueva cantidad absoluta del lote {field(ajusteTarget, 'Lote')} Queda registrado como AJUSTE en el kardex
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAjuste} className="space-y-3">
