@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ClipboardCheck, Eye, Plus, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import Buscador from '@/components/Buscador'
+import SelectorBusqueda from '@/components/SelectorBusqueda'
 import Paginacion from '@/components/Paginacion'
 import {
   Dialog,
@@ -19,7 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -69,7 +71,7 @@ export default function Caja() {
   const [sucursales, setSucursales] = useState([])
   const [activo, setActivo] = useState(null)
   const [abierta, setAbierta] = useState(null)
-  const [sucursalId, setSucursalId] = useState('')
+  const [sucursalId, setSucursalId] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [estado, setEstado] = useState('')
   const [q, setQ] = useState('')
   const qDebounced = useDebounced(q)
@@ -82,7 +84,7 @@ export default function Caja() {
   const [saving, setSaving] = useState(false)
 
   const [abrirOpen, setAbrirOpen] = useState(false)
-  const [formSucursal, setFormSucursal] = useState('')
+  const [formSucursal, setFormSucursal] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [montoInicial, setMontoInicial] = useState('')
 
   const [movOpen, setMovOpen] = useState(false)
@@ -142,6 +144,13 @@ export default function Caja() {
     setTotal(Number(data?.paginacion?.total ?? data?.total ?? 0))
     setAbiertos(Number(data?.resumen?.abiertos ?? 0))
   }, [limit, offset, sucursalId, estado, qDebounced])
+
+  useEffect(() => {
+    if (!sucursalFijada()) return
+    const id = sucursalAsignada()
+    setSucursalId(id)
+    setFormSucursal(id)
+  }, [])
 
   useEffect(() => {
     setOffset(0)
@@ -305,22 +314,27 @@ export default function Caja() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Gerencial · Caja</p>
           <h1 className="font-display text-3xl">Caja y turnos</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Cada sucursal tiene un solo turno abierto. Sin ese turno no se puede cobrar. El esperado es fondo más efectivo menos gastos, y el auditor marca el cierre.
+            Gestionar caja y turnos de las sucursales
           </p>
         </div>
-        {operar && !activo ? (
-          <Button
-            className="gap-2"
-            onClick={() => {
-              setFormSucursal(sucursalId)
-              setMontoInicial('')
-              setAbrirOpen(true)
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            Abrir turno
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {sucursalId ? (
+            <Link to={`/ventas?sucursal=${sucursalId}`} className={buttonVariants({ variant: 'outline' })}>Ir a POS</Link>
+          ) : null}
+          {operar && !activo ? (
+            <Button
+              className="gap-2"
+              onClick={() => {
+                setFormSucursal(sucursalFijada() ? sucursalAsignada() : sucursalId)
+                setMontoInicial('')
+                setAbrirOpen(true)
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Abrir turno
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <Card>
@@ -426,8 +440,8 @@ export default function Caja() {
             <Buscador value={q} onChange={setQ} placeholder="Buscar sucursal o cajero…" />
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <select className={selectClass} aria-label="Sucursal" value={sucursalId} onChange={(e) => setSucursalId(e.target.value)}>
-              <option value="">Todas las sucursales</option>
+            <select className={selectClass} aria-label="Sucursal" value={sucursalId} disabled={sucursalFijada()} onChange={(e) => setSucursalId(e.target.value)}>
+              {sucursalFijada() ? null : <option value="">Todas las sucursales</option>}
               {sucursales.map((s) => (
                 <option key={field(s, 'ID')} value={field(s, 'ID')}>
                   {field(s, 'Nombre')}
@@ -522,14 +536,18 @@ export default function Caja() {
           <form onSubmit={handleAbrir} className="grid gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="sucursalTurno">Sucursal</Label>
-              <select id="sucursalTurno" className={selectClass} value={formSucursal} onChange={(e) => setFormSucursal(e.target.value)}>
-                <option value="">Selecciona</option>
-                {sucursales.map((s) => (
-                  <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                    {field(s, 'Nombre')}
-                  </option>
-                ))}
-              </select>
+              <SelectorBusqueda
+                id="sucursalTurno"
+                items={sucursales.map((s) => ({
+                  value: String(field(s, 'ID')),
+                  label: field(s, 'Nombre') || '',
+                  hint: field(s, 'Codigo') || '',
+                }))}
+                value={formSucursal}
+                onChange={setFormSucursal}
+                placeholder="Buscar sucursal"
+                disabled={sucursalFijada()}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="fondoInicial">Fondo inicial</Label>
@@ -547,7 +565,7 @@ export default function Caja() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Movimiento de caja</DialogTitle>
-            <DialogDescription>Gasto, retiro o depósito en efectivo. Un gasto se suma al arqueo del turno.</DialogDescription>
+            <DialogDescription>Gasto, retiro o deposito en efectivo este gasto se suma al arqueo del turno</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleMovimiento} className="grid gap-3">
             <div className="space-y-1.5">

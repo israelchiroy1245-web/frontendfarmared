@@ -3,27 +3,28 @@ import { getToken, getUser } from './auth'
 /** Quién puede entrar al módulo. El API sigue siendo quien responde 403. */
 export const MODULOS = {
   tablero: ['ADMIN', 'QF', 'AUDITOR'],
-  sucursales: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'CALL_CENTER'],
-  inventario: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'CALL_CENTER'],
-  compras: ['ADMIN', 'QF', 'AUDITOR'],
-  proveedores: ['ADMIN', 'QF', 'AUDITOR'],
-  ventas: ['ADMIN', 'CAJERO', 'AUDITOR'],
-  transferencias: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR'],
-  caja: ['ADMIN', 'CAJERO', 'AUDITOR'],
-  activos: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR'],
+  sucursales: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'CALL_CENTER', 'ENCARGADO'],
+  inventario: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'ENCARGADO'],
+  compras: ['ADMIN', 'QF', 'ENCARGADO'],
+  proveedores: ['ADMIN', 'QF', 'AUDITOR', 'ENCARGADO'],
+  medicamentos: ['ADMIN', 'QF', 'AUDITOR', 'ENCARGADO'],
+  ventas: ['ADMIN', 'CAJERO', 'AUDITOR', 'ENCARGADO'],
+  transferencias: ['ADMIN', 'QF', 'AUDITOR', 'ENCARGADO'],
+  caja: ['ADMIN', 'CAJERO', 'AUDITOR', 'ENCARGADO'],
+  activos: ['ADMIN', 'QF', 'AUDITOR'],
   planilla: ['ADMIN', 'AUDITOR'],
-  entregas: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'CALL_CENTER'],
+  entregas: ['ADMIN', 'CAJERO', 'QF', 'AUDITOR', 'CALL_CENTER', 'ENCARGADO'],
   callCenter: ['ADMIN', 'CALL_CENTER'],
   reportes: ['ADMIN', 'QF', 'AUDITOR'],
   usuarios: ['ADMIN'],
   roles: ['ADMIN'],
-  permisos: ['ADMIN'],
 }
 
 const INICIO = {
   ADMIN: '/',
   CAJERO: '/ventas',
   QF: '/inventario',
+  ENCARGADO: '/inventario',
   AUDITOR: '/caja',
   CALL_CENTER: '/call-center',
 }
@@ -75,4 +76,15 @@ export function puedeModulo(modulo, rol = getRol()) {
 
 export function inicioDe(rol = getRol()) {
   return INICIO[String(rol || '').toUpperCase()] || '/'
+}
+
+export function sucursalAsignada() {
+  const user = getUser()
+  const id = user?.sucursalId ?? user?.sucursal_id ?? user?.SUCURSAL_ID
+  return id == null || id === '' ? '' : String(id)
+}
+
+export function sucursalFijada() {
+  const r = getRol()
+  return r === 'CAJERO' || r === 'ENCARGADO' || r === 'QF'
 }

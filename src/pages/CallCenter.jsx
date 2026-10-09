@@ -22,7 +22,18 @@ function field(row, ...keys) {
   return null
 }
 
-const DEPARTAMENTOS = ['Guatemala', 'Sacatepéquez', 'Quetzaltenango', 'Escuintla']
+const DEPARTAMENTOS = [
+  'Guatemala',
+  'Sacatepéquez',
+  'Quetzaltenango',
+  'Escuintla',
+  'Alta Verapaz',
+  'Huehuetenango',
+  'Izabal',
+  'Petén',
+  'Suchitepéquez',
+]
+const AVISO_RECETA = 'Requiere receta (MSPAS). El cobro no se bloquea.'
 const METODOS = ['EFECTIVO', 'TARJETA', 'TRANSFERENCIA']
 const selectClass =
   'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -72,6 +83,18 @@ export default function CallCenter() {
     setLineas((prev) => prev.map((linea, i) => (i === index ? { ...linea, [key]: value } : linea)))
   }
 
+  function requiereReceta(medicamentoId) {
+    const med = medicamentos.find((item) => String(field(item, 'ID')) === String(medicamentoId))
+    return Number(field(med, 'RECETA_REQUERIDA')) === 1
+  }
+
+  function elegirMedicamento(index, medicamentoId) {
+    setLinea(index, 'medicamentoId', medicamentoId)
+    if (requiereReceta(medicamentoId)) toast.message(AVISO_RECETA)
+  }
+
+  const hayReceta = lineas.some((linea) => requiereReceta(linea.medicamentoId))
+
   function itemsValidos() {
     const items = []
     for (const linea of lineas) {
@@ -100,6 +123,7 @@ export default function CallCenter() {
       setResultado(data)
       setElegida(data.mejorOpcion || null)
       toast.success(data.mensaje || 'Cobertura consultada')
+      if (items.some((item) => requiereReceta(item.medicamentoId))) toast.message(AVISO_RECETA)
     } catch (err) {
       toast.error(err.message || 'No se pudo consultar la cobertura')
     } finally {
@@ -116,7 +140,7 @@ export default function CallCenter() {
       return
     }
     if (!nombre.trim() || !direccion.trim()) {
-      toast.error('Nombre y dirección de entrega son obligatorios')
+      toast.error('Nombre y direccion de entrega son obligatorios')
       return
     }
     setGuardando(true)
@@ -150,7 +174,7 @@ export default function CallCenter() {
   }
 
   if (!consultar) {
-    return <p className="text-destructive">Tu rol no puede usar el call center.</p>
+    return <p className="text-destructive">Tu rol no puede usar el call center</p>
   }
 
   const opciones = resultado?.opciones || []
@@ -158,10 +182,10 @@ export default function CallCenter() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Logística · Call center</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Logistica · Call center</p>
         <h1 className="font-display text-3xl">Call center</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">
-          La consulta elige la sucursal más cercana con stock completo. Si no hay coordenadas, usa el departamento. El pedido nace confirmado.
+          La consulta elige la sucursal mas cercana con stock completo y si no hay coordenadas, usa el departamento
         </p>
       </div>
 
@@ -171,7 +195,7 @@ export default function CallCenter() {
             <Headset className="h-4 w-4" />
             Consulta de cobertura
           </CardTitle>
-          <CardDescription>Distancia en kilómetros y tiempo estimado de entrega.</CardDescription>
+          <CardDescription>Distancia en kilometros y tiempo estimado de entrega</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={consultarCobertura} className="space-y-4">
@@ -197,7 +221,7 @@ export default function CallCenter() {
               <div key={index} className="grid gap-2 sm:grid-cols-5">
                 <div className="space-y-1.5 sm:col-span-3">
                   <Label>Medicamento</Label>
-                  <select className={selectClass} value={linea.medicamentoId} onChange={(e) => setLinea(index, 'medicamentoId', e.target.value)}>
+                  <select className={selectClass} value={linea.medicamentoId} onChange={(e) => elegirMedicamento(index, e.target.value)}>
                     <option value="">Selecciona</option>
                     {medicamentos.map((m) => (
                       <option key={field(m, 'ID')} value={field(m, 'ID')}>{field(m, 'NOMBRE_MEDICAMENTO') || field(m, 'Nombre_medic')}</option>
@@ -215,6 +239,7 @@ export default function CallCenter() {
                 </div>
               </div>
             ))}
+            {hayReceta ? <p className="text-sm">Requiere receta</p> : null}
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => setLineas((prev) => [...prev, lineaVacia()])}>
                 <Plus className="h-4 w-4" />
@@ -230,7 +255,10 @@ export default function CallCenter() {
         <Card>
           <CardHeader>
             <CardTitle>Sucursales</CardTitle>
-            <CardDescription>{resultado?.mensaje}</CardDescription>
+            <CardDescription>
+              {resultado?.mensaje}
+              {hayReceta ? ' · Requiere receta' : ''}
+            </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
@@ -294,7 +322,7 @@ export default function CallCenter() {
                 <Input id="nit" value={nit} onChange={(e) => setNit(e.target.value)} />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="dir">Dirección de entrega</Label>
+                <Label htmlFor="dir">Direccion de entrega</Label>
                 <Input id="dir" value={direccion} onChange={(e) => setDireccion(e.target.value)} />
               </div>
               <div className="space-y-1.5">

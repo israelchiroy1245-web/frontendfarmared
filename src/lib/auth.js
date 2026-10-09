@@ -1,4 +1,7 @@
 import { api } from './api'
+import { getRefreshToken, getToken, getUser, guardarSesion, limpiarSesion } from './sesionCliente'
+
+export { getToken, getUser }
 
 export async function login({ usuario, password }) {
   const data = await api('/api/auth/login', {
@@ -6,37 +9,36 @@ export async function login({ usuario, password }) {
     body: { email: usuario, password },
   })
 
-  const token =
-    data?.token || data?.access_token || data?.accessToken || data?.data?.token
+  const token = data?.token || data?.access_token || data?.accessToken || data?.data?.token
+  const refreshToken = data?.refreshToken
 
-  if (!token) {
+  if (!token || !refreshToken) {
     throw new Error('El servidor no devolvió una sesión')
   }
 
-  localStorage.setItem('token', token)
-
-  const user = data?.usuario || data?.user
-  if (user) {
-    localStorage.setItem('user', JSON.stringify(user))
-  }
+  guardarSesion({
+    token,
+    refreshToken,
+    usuario: data?.usuario || data?.user,
+  })
 
   return data
 }
 
-export function logout() {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
-}
-
-export function getToken() {
-  return localStorage.getItem('token')
-}
-
-export function getUser() {
+export async function logout() {
+  const token = getToken()
+  const refreshToken = getRefreshToken()
   try {
-    const raw = localStorage.getItem('user')
-    return raw ? JSON.parse(raw) : null
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(refreshToken ? { refreshToken } : {}),
+    })
   } catch {
-    return null
+    /* aunque falle la red, el cliente no conserva la sesión */
   }
+  limpiarSesion()
 }

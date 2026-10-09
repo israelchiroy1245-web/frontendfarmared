@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -43,7 +43,7 @@ const selectClass =
   'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
 function puedeVer() {
-  return ['CALL_CENTER', 'ADMIN', 'QF', 'CAJERO', 'AUDITOR'].includes(getRol())
+  return ['CALL_CENTER', 'ADMIN', 'QF', 'CAJERO', 'AUDITOR', 'ENCARGADO'].includes(getRol())
 }
 
 function puedeMover() {
@@ -65,7 +65,8 @@ export default function Pedidos() {
   const [rows, setRows] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [estado, setEstado] = useState('')
-  const [sucursalId, setSucursalId] = useState('')
+  const local = sucursalFijada()
+  const [sucursalId, setSucursalId] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [q, setQ] = useState('')
   const qDebounced = useDebounced(q)
   const [limit, setLimit] = useState(50)
@@ -168,7 +169,7 @@ export default function Pedidos() {
   }
 
   if (!ver) {
-    return <p className="text-destructive">Tu rol no puede ver las entregas.</p>
+    return <p className="text-destructive">Tu rol no puede ver las entregas</p>
   }
 
   if (loading && rows.length === 0 && !error) {
@@ -189,10 +190,10 @@ export default function Pedidos() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Logística · Entregas</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Logistica · Entregas</p>
         <h1 className="font-display text-3xl">Entregas a domicilio</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">
-          El pedido avanza de confirmado a preparando, en ruta y entregado. Al entregar se sella la fecha. Un pedido entregado o cancelado ya no cambia.
+          El pedido avanza de confirmado a preparando, en ruta y entregado y al entregar se sella la fecha y un pedido entregado o cancelado ya no cambia
         </p>
       </div>
 
@@ -212,8 +213,8 @@ export default function Pedidos() {
                 <option key={item} value={item}>{item}</option>
               ))}
             </select>
-            <select className={selectClass} aria-label="Sucursal" value={sucursalId} onChange={(e) => setSucursalId(e.target.value)}>
-              <option value="">Todas las sucursales</option>
+            <select className={selectClass} aria-label="Sucursal" value={sucursalId} disabled={local} onChange={(e) => setSucursalId(e.target.value)}>
+              {local ? null : <option value="">Todas las sucursales</option>}
               {sucursales.map((s) => (
                 <option key={field(s, 'ID')} value={field(s, 'ID')}>{field(s, 'Nombre')}</option>
               ))}

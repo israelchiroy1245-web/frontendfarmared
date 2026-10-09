@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowRightLeft, Landmark, Package, Store, Users, Wallet } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api, gtq } from '@/lib/utils'
@@ -43,7 +45,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="font-display text-3xl">Tablero ejecutivo</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">
-          Vista consolidada de inventario, efectivo, planilla, activos fijos y entregas a domicilio en las 12 sucursales de la red.
+          Vista consolidada de inventario, efectivo, planilla, activos fijos y entregas a domicilio de las sucursales de la red
         </p>
       </div>
 
@@ -57,7 +59,11 @@ export default function DashboardPage() {
           icon={ArrowRightLeft}
           label="Logística en curso"
           value={`${data.entregas.pendientes} entregas`}
-          hint={`${data.transferencias.transito} transferencias en tránsito`}
+          hint={
+            data.transferencias.solicitadas == null
+              ? `${data.transferencias.transito} transferencias en tránsito`
+              : `${data.transferencias.transito} en tránsito · ${data.transferencias.solicitadas} solicitadas`
+          }
         />
       </div>
 
@@ -86,24 +92,35 @@ export default function DashboardPage() {
               <AlertTriangle className="h-4 w-4 text-accent" />
               Stock bajo
             </CardTitle>
-            <CardDescription>Productos en o debajo del mínimo</CardDescription>
+            <CardDescription>Reponer Stock Bajo de Medicamentos</CardDescription>
           </CardHeader>
           <CardContent>
             {data.alertas.length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay alertas de inventario.</p>
             ) : (
               <ul className="space-y-3">
-                {data.alertas.slice(0, 7).map((a) => (
-                  <li key={`${a.sucursal_id}-${a.sku}`} className="flex items-start justify-between gap-3 text-sm">
-                    <div>
-                      <p className="font-medium">{a.producto}</p>
-                      <p className="text-xs text-muted-foreground">{a.sucursal}</p>
-                    </div>
-                    <Badge variant={a.cantidad === 0 ? 'danger' : 'warn'}>
-                      {a.cantidad}/{a.stock_minimo}
-                    </Badge>
-                  </li>
-                ))}
+                {data.alertas.slice(0, 7).map((a) => {
+                  const reponer = `/transferencias?destinoId=${a.sucursal_id}&medicamentoId=${a.medicamento_id}${a.origen_id ? `&origenId=${a.origen_id}` : ''}`
+                  return (
+                    <li key={`${a.sucursal_id}-${a.medicamento_id || a.sku}`} className="flex items-start justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium">{a.sucursal}</p>
+                        <p className="text-sm">{a.sucursal_codigo} · {a.producto}</p>
+                        {a.origen_nombre ? (
+                          <p className="text-sm text-muted-foreground">Hay {a.origen_cantidad} en {a.origen_nombre}</p>
+                        ) : null}
+                        {a.sucursal_id && a.medicamento_id ? (
+                          <Link to={reponer} className={`${buttonVariants({ variant: 'outline', size: 'sm' })} mt-2`}>
+                            Reponer
+                          </Link>
+                        ) : null}
+                      </div>
+                      <Badge variant={a.cantidad === 0 ? 'danger' : 'warn'}>
+                        {a.cantidad}/{a.stock_minimo}
+                      </Badge>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </CardContent>

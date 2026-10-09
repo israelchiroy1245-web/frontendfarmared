@@ -1,5 +1,6 @@
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { getRefreshToken, getToken, guardarTokens, limpiarSesion } from './sesionCliente'
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs))
@@ -21,13 +22,19 @@ export function fmtDate(value) {
 }
 
 export function downloadCsv(filename, rows, columns) {
-  const esc = (v) => {
-    const s = v == null ? '' : String(v)
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  const celda = (v) => {
+    if (v == null || v === '') return ''
+    if (typeof v === 'number' && Number.isFinite(v)) return String(v).replace('.', ',')
+    const s = String(v)
+    if (/^-?\d+\.\d+$/.test(s)) return s.replace('.', ',')
+    return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  const header = columns.map((c) => esc(c.label)).join(',')
-  const body = rows.map((r) => columns.map((c) => esc(typeof c.value === 'function' ? c.value(r) : r[c.value])).join(',')).join('\n')
-  const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8' })
+  const linea = (vals) => vals.map(celda).join(';')
+  const header = linea(columns.map((c) => c.label))
+  const body = rows
+    .map((r) => linea(columns.map((c) => (typeof c.value === 'function' ? c.value(r) : r[c.value]))))
+    .join('\r\n')
+  const blob = new Blob([`\uFEFF${header}\r\n${body}`], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -36,17 +43,58 @@ export function downloadCsv(filename, rows, columns) {
   URL.revokeObjectURL(url)
 }
 
-export async function api(path, options = {}) {
-  const { method = 'GET', body, query, headers } = options
-  const url = new URL(path, window.location.origin)
+let refrescoEnCurso = null
+
+function rutaSinRefresco(path) {
+  const ruta = String(path)
+  return ruta.includes('/api/auth/login') || ruta.includes('/api/auth/refresh')
+}
+
+function irAlLogin() {
+  limpiarSesion()
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login')
+  }
+}
+
+function urlApi(path, query) {
+  const base = import.meta.env.VITE_API_URL
+  const url = new URL(path, base || window.location.origin)
   if (query) {
     Object.entries(query).forEach(([k, v]) => {
       if (v != null && v !== '') url.searchParams.set(k, v)
     })
   }
+  return base ? url.toString() : url.pathname + url.search
+}
 
-  const token = localStorage.getItem('token')
-  const res = await fetch(url.pathname + url.search, {
+function refrescarAccess() {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return Promise.resolve(false)
+  if (!refrescoEnCurso) {
+    refrescoEnCurso = fetch(urlApi('/api/auth/refresh'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || !data?.token || !data?.refreshToken) return false
+        guardarTokens(data.token, data.refreshToken)
+        return true
+      })
+      .catch(() => false)
+      .finally(() => {
+        refrescoEnCurso = null
+      })
+  }
+  return refrescoEnCurso
+}
+
+export async function api(path, options = {}, reintento = false) {
+  const { method = 'GET', body, query, headers } = options
+  const token = getToken()
+  const res = await fetch(urlApi(path, query), {
     method,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
@@ -57,12 +105,12 @@ export async function api(path, options = {}) {
   })
 
   const data = await res.json().catch(() => ({}))
-  if (res.status === 401 && token && !String(path).includes('/api/auth/login')) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    if (window.location.pathname !== '/login') {
-      window.location.assign('/login')
+  if (res.status === 401 && !rutaSinRefresco(path)) {
+    if (!reintento) {
+      const renovado = await refrescarAccess()
+      if (renovado) return api(path, options, true)
     }
+    irAlLogin()
   }
   if (!res.ok) {
     throw new Error(data.error || data.message || data.msg || `Error ${res.status}`)

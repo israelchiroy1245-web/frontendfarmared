@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import Buscador from '@/components/Buscador'
+import SelectorBusqueda from '@/components/SelectorBusqueda'
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, fmtDate, gtq } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 import Paginacion from '@/components/Paginacion'
 
@@ -48,7 +49,7 @@ const emptyForm = {
 
 function puedeEscribir() {
   const rol = getRol()
-  return rol === 'ADMIN' || rol === 'QF'
+  return rol === 'ADMIN' || rol === 'QF' || rol === 'ENCARGADO'
 }
 
 function Kpi({ icon: Icon, label, value, hint }) {
@@ -70,12 +71,13 @@ function Kpi({ icon: Icon, label, value, hint }) {
 
 export default function Inventario() {
   const escribir = puedeEscribir()
+  const local = sucursalFijada()
   const [vista, setVista] = useState('lotes')
   const [lotes, setLotes] = useState([])
   const [kardex, setKardex] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [medicamentos, setMedicamentos] = useState([])
-  const [sucursalId, setSucursalId] = useState('')
+  const [sucursalId, setSucursalId] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [soloBajo, setSoloBajo] = useState(false)
   const [q, setQ] = useState('')
   const qDebounced = useDebounced(q)
@@ -84,7 +86,7 @@ export default function Inventario() {
   const [offsetKardex, setOffsetKardex] = useState(0)
   const [totalLotes, setTotalLotes] = useState(0)
   const [totalKardex, setTotalKardex] = useState(0)
-  const [resumen, setResumen] = useState({ bajos: 0, vencidos: 0 })
+  const [resumen, setResumen] = useState({ bajos: 0, vencidos: 0, porVencer: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -127,6 +129,7 @@ export default function Inventario() {
     setResumen({
       bajos: Number(data?.resumen?.bajos ?? 0),
       vencidos: Number(data?.resumen?.vencidos ?? 0),
+      porVencer: Number(data?.resumen?.porVencer ?? 0),
     })
   }, [sucursalId, soloBajo, qDebounced, limit, offsetLotes])
 
@@ -176,7 +179,7 @@ export default function Inventario() {
   }, [vista, loadLotes, loadKardex])
 
   const filtrados = vista === 'kardex' ? kardex : lotes
-  const stats = { total: totalLotes, bajos: resumen.bajos, vencidos: resumen.vencidos }
+  const stats = { total: totalLotes, bajos: resumen.bajos, vencidos: resumen.vencidos, porVencer: resumen.porVencer }
 
   useEffect(() => {
     setOffsetLotes(0)
@@ -287,14 +290,24 @@ export default function Inventario() {
     return <p className="text-destructive">No se pudo cargar el inventario: {error}</p>
   }
 
+  const nombreSucursal =
+    field(
+      sucursales.find((s) => String(field(s, 'ID')) === String(sucursalId)),
+      'Nombre',
+    ) || 'tu sucursal'
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Red · Inventario</p>
-          <h1 className="font-display text-3xl">Inventario y lotes</h1>
+          <h1 className="font-display text-3xl">
+            {local ? `Lotes de ${nombreSucursal}` : 'Inventario y lotes'}
+          </h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Stock por sucursal, lote y vencimiento. Las salidas automáticas usan FEFO.
+            {local
+              ? 'Existencias de este local, por lote y vencimiento. Las salidas automáticas usan FEFO.'
+              : 'Stock por sucursal, lote y vencimiento'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -319,9 +332,10 @@ export default function Inventario() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={Package} label="Lotes" value={stats.total} hint="Total con el filtro actual" />
         <Kpi icon={AlertTriangle} label="Stock bajo" value={stats.bajos} hint="Cantidad en o bajo el mínimo" />
+        <Kpi icon={AlertTriangle} label="Por vencer" value={stats.porVencer} hint="Vence en 90 días o menos" />
         <Kpi icon={AlertTriangle} label="Vencidos" value={stats.vencidos} hint="Fecha de vencimiento pasada" />
       </div>
 
@@ -337,6 +351,7 @@ export default function Inventario() {
             <select
               className={selectClass}
               value={sucursalId}
+              disabled={local}
               onChange={(e) => {
                 setSucursalId(e.target.value)
                 setOffsetLotes(0)
@@ -344,7 +359,7 @@ export default function Inventario() {
               }}
               aria-label="Sucursal"
             >
-              <option value="">Todas las sucursales</option>
+              {local ? null : <option value="">Todas las sucursales</option>}
               {sucursales.map((s) => {
                 const id = field(s, 'ID')
                 return (
@@ -421,6 +436,7 @@ export default function Inventario() {
                   const cantidad = Number(field(row, 'Cantidad') || 0)
                   const bajo = Number(field(row, 'STOCK_BAJO') || 0) === 1
                   const vencido = Number(field(row, 'VENCIDO') || 0) === 1
+                  const porVencer = Number(field(row, 'POR_VENCER') || 0) === 1
                   return (
                     <TableRow key={id}>
                       <TableCell>
@@ -436,8 +452,9 @@ export default function Inventario() {
                       <TableCell>{field(row, 'FECHA_VENCIMIENTO') || '—'}</TableCell>
                       <TableCell>
                         {vencido ? <Badge variant="danger">Vencido</Badge> : null}
+                        {!vencido && porVencer ? <Badge variant="warn">Por vencer</Badge> : null}
                         {bajo ? <Badge variant="warn">Stock bajo</Badge> : null}
-                        {!vencido && !bajo ? <Badge variant="ok">Ok</Badge> : null}
+                        {!vencido && !porVencer && !bajo ? <Badge variant="ok">Ok</Badge> : null}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
@@ -499,30 +516,37 @@ export default function Inventario() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nuevo lote</DialogTitle>
-            <DialogDescription>Alta en F_Inventario. Si la cantidad es mayor a cero, queda una entrada en el kardex.</DialogDescription>
+            <DialogDescription>Si la cantidad es mayor a cero, queda una entrada en el kardex</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="sucursalId">Sucursal</Label>
-              <select id="sucursalId" className={selectClass} value={form.sucursalId} onChange={(e) => setFormField('sucursalId', e.target.value)}>
-                <option value="">Selecciona</option>
-                {sucursales.map((s) => (
-                  <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                    {field(s, 'Nombre')}
-                  </option>
-                ))}
-              </select>
+              <SelectorBusqueda
+                id="sucursalId"
+                items={sucursales.map((s) => ({
+                  value: String(field(s, 'ID')),
+                  label: field(s, 'Nombre') || '',
+                  hint: field(s, 'Codigo') || '',
+                }))}
+                value={form.sucursalId}
+                onChange={(id) => setFormField('sucursalId', id)}
+                placeholder="Buscar sucursal"
+                disabled={local}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="medicamentoId">Medicamento</Label>
-              <select id="medicamentoId" className={selectClass} value={form.medicamentoId} onChange={(e) => setFormField('medicamentoId', e.target.value)}>
-                <option value="">Selecciona</option>
-                {medicamentos.map((m) => (
-                  <option key={field(m, 'ID')} value={field(m, 'ID')}>
-                    {field(m, 'NOMBRE_MEDICAMENTO')}
-                  </option>
-                ))}
-              </select>
+              <SelectorBusqueda
+                id="medicamentoId"
+                items={medicamentos.map((m) => ({
+                  value: String(field(m, 'ID')),
+                  label: field(m, 'NOMBRE_MEDICAMENTO') || '',
+                  hint: field(m, 'CODIGO_BARRA') || '',
+                }))}
+                value={form.medicamentoId}
+                onChange={(id) => setFormField('medicamentoId', id)}
+                placeholder="Buscar medicamento"
+              />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -555,7 +579,7 @@ export default function Inventario() {
           <DialogHeader>
             <DialogTitle>Ajustar stock</DialogTitle>
             <DialogDescription>
-              Nueva cantidad absoluta del lote {field(ajusteTarget, 'Lote')}. Queda registrado como AJUSTE en el kardex.
+              Nueva cantidad absoluta del lote {field(ajusteTarget, 'Lote')} Queda registrado como AJUSTE en el kardex
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAjuste} className="space-y-3">

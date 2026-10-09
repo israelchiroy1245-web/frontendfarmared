@@ -31,7 +31,7 @@ import { api, fmtDate, gtq } from '@/lib/utils'
 import { useDebounced } from '@/lib/useDebounced'
 import Paginacion from '@/components/Paginacion'
 
-/** Oracle puede devolver columnas en mayúsculas o como en el SELECT. */
+/** Oracle puede devolver columnas en mayusculas o como en el SELECT. */
 function field(row, ...keys) {
   if (!row) return null
   for (const key of keys) {
@@ -142,6 +142,7 @@ export default function Usuarios() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
+  const [sucursalFiltro, setSucursalFiltro] = useState('')
   const qDebounced = useDebounced(q)
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
@@ -168,6 +169,7 @@ export default function Usuarios() {
   const loadUsuarios = useCallback(async () => {
     const query = { limit, offset }
     if (qDebounced.trim()) query.q = qDebounced.trim()
+    if (sucursalFiltro) query.sucursalId = sucursalFiltro
     const data = await api('/api/usuarios', { query })
     setUsuarios(Array.isArray(data?.usuarios) ? data.usuarios : [])
     setTotal(Number(data?.paginacion?.total ?? 0))
@@ -176,11 +178,11 @@ export default function Usuarios() {
       roles: Number(data?.resumen?.roles ?? 0),
       conSucursal: Number(data?.resumen?.conSucursal ?? 0),
     })
-  }, [limit, offset, qDebounced])
+  }, [limit, offset, qDebounced, sucursalFiltro])
 
   useEffect(() => {
     setOffset(0)
-  }, [qDebounced, limit])
+  }, [qDebounced, limit, sucursalFiltro])
 
   useEffect(() => {
     let alive = true
@@ -366,7 +368,13 @@ export default function Usuarios() {
     if (!id) return
     setSaving(true)
     try {
-      await api(`/api/usuarios/${id}`, { method: 'DELETE' })
+      const empleadoId = field(deleteTarget, 'EMPLEADO_ID', 'Empleado_ID')
+      if (!empleadoId) {
+        toast.error('Esta cuenta no tiene empleado para inactivar')
+        setSaving(false)
+        return
+      }
+      await api(`/api/empleados/${empleadoId}/estado`, { method: 'PATCH', body: { estado: 'INACTIVO' } })
       toast.success('Usuario desactivado exitosamente')
       setDeleteOpen(false)
       setDeleteTarget(null)
@@ -390,7 +398,7 @@ export default function Usuarios() {
         <div>
           <h1 className="font-display text-3xl">Usuarios</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Personal de la red FarmaRed: cuentas, roles, cargo y sucursal asignada.
+            Personal de la red FarmaRed: cuentas, roles, cargo y sucursal asignada
           </p>
         </div>
         <Button onClick={openCreate} className="gap-2">
@@ -400,14 +408,19 @@ export default function Usuarios() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Users} label="Usuarios registrados" value={stats.total} hint="Total en F_Usuarios" />
+        <Kpi
+          icon={Users}
+          label="Usuarios registrados"
+          value={stats.total}
+          hint={sucursalFiltro ? 'Empleados de la sucursal filtrada' : 'Total de usuarios registrados'}
+        />
         <Kpi icon={UserCheck} label="Activos" value={stats.activos} hint={`${stats.inactivos} inactivos`} />
-        <Kpi icon={Shield} label="Roles distintos" value={stats.roles} hint="Catálogo de F_Roles" />
+        <Kpi icon={Shield} label="Roles distintos" value={stats.roles} hint="Catalogo de roles" />
         <Kpi
           icon={Building2}
           label="Con sucursal"
           value={stats.conSucursal}
-          hint="Empleados vinculados a F_Sucursal"
+          hint="Empleados vinculados a sucursal"
         />
       </div>
 
@@ -419,16 +432,38 @@ export default function Usuarios() {
               {total} registros
             </CardDescription>
           </div>
-          <Buscador
-            value={q}
-            onChange={setQ}
-            placeholder="Buscar nombre, email, rol…"
-          />
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <select
+              className={`${selectClass} sm:w-64`}
+              aria-label="Sucursal"
+              value={sucursalFiltro}
+              onChange={(e) => setSucursalFiltro(e.target.value)}
+            >
+              <option value="">Todas las sucursales</option>
+              {sucursales.map((s) => {
+                const id = field(s, 'ID', 'Id')
+                const codigo = field(s, 'Codigo', 'codigo')
+                const nombre = field(s, 'Nombre', 'nombre')
+                return (
+                  <option key={id} value={id}>
+                    {codigo ? `${codigo} · ${nombre}` : nombre}
+                  </option>
+                )
+              })}
+            </select>
+            <Buscador
+              value={q}
+              onChange={setQ}
+              placeholder="Buscar nombre, email, rol…"
+            />
+          </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {filtrados.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No hay usuarios que coincidan con la búsqueda.
+              {sucursalFiltro
+                ? 'No hay empleados en esa sucursal.'
+                : 'No hay usuarios que coincidan con la búsqueda.'}
             </p>
           ) : (
             <Table>
@@ -479,7 +514,7 @@ export default function Usuarios() {
                       <TableCell className="text-sm">{cargo || '—'}</TableCell>
                       <TableCell className="text-sm">{sucursal || '—'}</TableCell>
                       <TableCell className="text-sm">{salario != null ? gtq(salario) : '—'}</TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{fmtDate(ingreso)}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{ingreso ? new Date(ingreso).toLocaleDateString() : '—'}</TableCell>
                       <TableCell>
                         <Badge variant={activo ? 'ok' : 'danger'}>
                           {activo ? 'Activo' : String(estado ?? 'Inactivo')}
@@ -580,7 +615,16 @@ export default function Usuarios() {
                 id="rolId"
                 className={selectClass}
                 value={form.rolId}
-                onChange={(e) => setFormField('rolId', e.target.value)}
+                onChange={(e) => {
+                  const rolId = e.target.value
+                  const elegido = roles.find((r) => String(field(r, 'ID', 'Id')) === rolId)
+                  const nombre = String(field(elegido, 'Nombre', 'nombre') || '').toUpperCase()
+                  setForm((prev) => ({
+                    ...prev,
+                    rolId,
+                    cargo: nombre === 'ENCARGADO' ? 'Encargado de sucursal' : prev.cargo,
+                  }))
+                }}
                 required
               >
                 <option value="">Selecciona un rol</option>
@@ -676,7 +720,6 @@ export default function Usuarios() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Detalle de usuario</DialogTitle>
-            <DialogDescription>GET /api/usuarios/:id</DialogDescription>
           </DialogHeader>
           {detailLoading || !detail ? (
             <div className="space-y-2">
@@ -701,7 +744,7 @@ export default function Usuarios() {
                 <dd className="text-right">{field(detail, 'DPI') || '—'}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Teléfono</dt>
+                <dt className="text-muted-foreground">Telefono</dt>
                 <dd className="text-right">{field(detail, 'Telefono') || '—'}</dd>
               </div>
               <div className="flex justify-between gap-4">
@@ -749,7 +792,7 @@ export default function Usuarios() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Cambiar contraseña</DialogTitle>
-            <DialogDescription>Mínimo 6 caracteres. Se envía con PATCH al backend.</DialogDescription>
+            <DialogDescription>Minimo 6 caracteres</DialogDescription>
           </DialogHeader>
           <form onSubmit={handlePassword} className="grid gap-3">
             <Field id="nuevaPassword" label="Nueva contraseña">
@@ -780,7 +823,7 @@ export default function Usuarios() {
           <DialogHeader>
             <DialogTitle>Desactivar usuario</DialogTitle>
             <DialogDescription>
-              Baja lógica: el usuario (y su empleado) pasan a estado INACTIVO. No se elimina el registro.
+              Baja logica: el usuario y su empleado pasan a estado INACTIVO y no se elimina el registro
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">

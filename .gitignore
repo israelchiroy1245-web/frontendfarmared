@@ -10,8 +10,8 @@ lerna-debug.log*
 node_modules
 docs
 .env
+.env.*
 .cursor
-.env.example
 Script1.sql
 ScriptInformacion.sql
 

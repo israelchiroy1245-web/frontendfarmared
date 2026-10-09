@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Eye, Pencil, Plus, Trash2, Truck } from 'lucide-react'
+import { Eye, Package, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -39,21 +39,35 @@ function puedeMantener() {
   return rol === 'ADMIN' || rol === 'QF'
 }
 
-const emptyForm = { nombre: '', nit: '', telefono: '', direccion: '', email: '' }
+const emptyForm = {
+  nombre: '',
+  codigoBarra: '',
+  principioActivo: '',
+  presentacion: '',
+  laboratorio: '',
+  receta: false,
+  precioVenta: '',
+  costo: '',
+  descripcion: '',
+}
 
-function formFromProveedor(row) {
+function formFromMedicamento(row) {
   return {
     nombre: field(row, 'NOMBRE') || '',
-    nit: field(row, 'NIT') || '',
-    telefono: field(row, 'TELEFONO') || '',
-    direccion: field(row, 'DIRECCION') || '',
-    email: field(row, 'EMAIL') || '',
+    codigoBarra: field(row, 'CODIGO_BARRA') || '',
+    principioActivo: field(row, 'PRINCIPIO_ACTIVO') || '',
+    presentacion: field(row, 'PRESENTACION') || '',
+    laboratorio: field(row, 'LABORATORIO') || '',
+    receta: Number(field(row, 'RECETA_REQUERIDA')) === 1,
+    precioVenta: field(row, 'PRECIO_VENTA') != null ? String(field(row, 'PRECIO_VENTA')) : '',
+    costo: field(row, 'COSTO') != null ? String(field(row, 'COSTO')) : '',
+    descripcion: field(row, 'DESCRIPCION') || '',
   }
 }
 
-export default function Proveedores() {
+export default function Medicamentos() {
   const mantener = puedeMantener()
-  const [proveedores, setProveedores] = useState([])
+  const [medicamentos, setMedicamentos] = useState([])
   const [q, setQ] = useState('')
   const qDebounced = useDebounced(q)
   const [limit, setLimit] = useState(50)
@@ -76,13 +90,13 @@ export default function Proveedores() {
 
   const reqId = useRef(0)
 
-  const loadProveedores = useCallback(async () => {
+  const loadMedicamentos = useCallback(async () => {
     const id = ++reqId.current
     const query = { limit, offset }
     if (qDebounced.trim()) query.q = qDebounced.trim()
-    const data = await api('/api/proveedores', { query })
+    const data = await api('/api/medicamentos', { query })
     if (id !== reqId.current) return
-    setProveedores(Array.isArray(data?.datos) ? data.datos : [])
+    setMedicamentos(Array.isArray(data?.datos) ? data.datos : [])
     setTotal(Number(data?.paginacion?.total ?? data?.total ?? 0))
   }, [limit, offset, qDebounced])
 
@@ -95,7 +109,7 @@ export default function Proveedores() {
     ;(async () => {
       setLoading(true)
       try {
-        await loadProveedores()
+        await loadMedicamentos()
         if (alive) setError(null)
       } catch (e) {
         if (alive) setError(e.message)
@@ -106,7 +120,7 @@ export default function Proveedores() {
     return () => {
       alive = false
     }
-  }, [loadProveedores])
+  }, [loadMedicamentos])
 
   function setCampo(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -122,46 +136,54 @@ export default function Proveedores() {
   function abrirEdicion(row) {
     setFormMode('edit')
     setEditId(field(row, 'ID'))
-    setForm(formFromProveedor(row))
+    setForm(formFromMedicamento(row))
     setFormOpen(true)
   }
 
   function validar() {
-    if (!form.nombre.trim() || !form.nit.trim()) {
-      toast.error('Nombre y NIT son obligatorios')
+    if (!form.nombre.trim() || !form.codigoBarra.trim()) {
+      toast.error('Nombre y código de barras son obligatorios')
       return false
     }
-    const correo = form.email.trim()
-    if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
-      toast.error('El correo no tiene un formato válido')
+    const precio = Number(form.precioVenta)
+    const costo = Number(form.costo)
+    if (!Number.isFinite(precio) || precio < 0 || !Number.isFinite(costo) || costo < 0) {
+      toast.error('Precio de venta y costo deben ser mayores o iguales a 0')
       return false
     }
     return true
   }
 
+  function cuerpo() {
+    return {
+      nombre: form.nombre.trim(),
+      codigoBarra: form.codigoBarra.trim(),
+      principioActivo: form.principioActivo.trim(),
+      presentacion: form.presentacion.trim(),
+      laboratorio: form.laboratorio.trim(),
+      recetaRequerida: form.receta ? 1 : 0,
+      precioVenta: Number(form.precioVenta),
+      costo: Number(form.costo),
+      descripcion: form.descripcion.trim(),
+    }
+  }
+
   async function handleSave(e) {
     e.preventDefault()
     if (!validar()) return
-    const body = {
-      nombre: form.nombre.trim(),
-      nit: form.nit.trim(),
-      telefono: form.telefono.trim(),
-      direccion: form.direccion.trim(),
-      email: form.email.trim(),
-    }
     setSaving(true)
     try {
       if (formMode === 'create') {
-        await api('/api/proveedores', { method: 'POST', body })
-        toast.success('Proveedor registrado')
+        await api('/api/medicamentos', { method: 'POST', body: cuerpo() })
+        toast.success('Medicamento registrado')
       } else {
-        await api(`/api/proveedores/${editId}`, { method: 'PUT', body })
-        toast.success('Proveedor actualizado')
+        await api(`/api/medicamentos/${editId}`, { method: 'PUT', body: cuerpo() })
+        toast.success('Medicamento actualizado')
       }
       setFormOpen(false)
-      await loadProveedores()
+      await loadMedicamentos()
     } catch (err) {
-      toast.error(err.message || 'No se pudo guardar el proveedor')
+      toast.error(err.message || 'No se pudo guardar el medicamento')
     } finally {
       setSaving(false)
     }
@@ -171,10 +193,10 @@ export default function Proveedores() {
     setDetailOpen(true)
     setDetail(null)
     try {
-      const data = await api(`/api/proveedores/${id}`)
+      const data = await api(`/api/medicamentos/${id}`)
       setDetail(data.datos)
     } catch (err) {
-      toast.error(err.message || 'No se pudo cargar el proveedor')
+      toast.error(err.message || 'No se pudo cargar el medicamento')
       setDetailOpen(false)
     }
   }
@@ -184,13 +206,13 @@ export default function Proveedores() {
     if (!id) return
     setSaving(true)
     try {
-      await api(`/api/proveedores/${id}`, { method: 'DELETE' })
-      toast.success('Proveedor desactivado')
+      await api(`/api/medicamentos/${id}`, { method: 'DELETE' })
+      toast.success('Medicamento desactivado')
       setDeleteOpen(false)
       setDeleteTarget(null)
-      await loadProveedores()
+      await loadMedicamentos()
     } catch (err) {
-      toast.error(err.message || 'No se pudo desactivar el proveedor')
+      toast.error(err.message || 'No se pudo desactivar el medicamento')
     } finally {
       setSaving(false)
     }
@@ -201,17 +223,17 @@ export default function Proveedores() {
     if (!id) return
     setSaving(true)
     try {
-      await api(`/api/proveedores/${id}`, { method: 'PATCH', body: { estado: 'ACTIVO' } })
-      toast.success('Proveedor reactivado')
-      await loadProveedores()
+      await api(`/api/medicamentos/${id}`, { method: 'PATCH', body: { estado: 'ACTIVO' } })
+      toast.success('Medicamento reactivado')
+      await loadMedicamentos()
     } catch (err) {
-      toast.error(err.message || 'No se pudo reactivar el proveedor')
+      toast.error(err.message || 'No se pudo reactivar el medicamento')
     } finally {
       setSaving(false)
     }
   }
 
-  if (loading && proveedores.length === 0 && !error) {
+  if (loading && medicamentos.length === 0 && !error) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-9 w-56" />
@@ -220,35 +242,35 @@ export default function Proveedores() {
     )
   }
 
-  if (error && proveedores.length === 0) {
-    return <p className="text-destructive">No se pudieron cargar los proveedores: {error}</p>
+  if (error && medicamentos.length === 0) {
+    return <p className="text-destructive">No se pudieron cargar los medicamentos: {error}</p>
   }
 
-  const comprasRecientes = detail?.COMPRAS_RECIENTES || detail?.compras_recientes || []
+  const lotesRecientes = detail?.LOTES_RECIENTES || detail?.lotes_recientes || []
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operacion · Proveedores</p>
-          <h1 className="font-display text-3xl">Proveedores</h1>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Inventario · Medicamentos</p>
+          <h1 className="font-display text-3xl">Medicamentos</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Catalogo de distribuidores y laboratorios
+            Registro de medicamentos
           </p>
         </div>
         {mantener ? (
           <Button className="gap-2" onClick={abrirAlta}>
             <Plus className="h-4 w-4" />
-            Nuevo proveedor
+            Nuevo medicamento
           </Button>
         ) : null}
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-          <CardDescription>Proveedores</CardDescription>
+          <CardDescription>Medicamentos</CardDescription>
           <div className="rounded-md bg-secondary p-2 text-primary">
-            <Truck className="h-4 w-4" />
+            <Package className="h-4 w-4" />
           </div>
         </CardHeader>
         <CardContent>
@@ -263,41 +285,41 @@ export default function Proveedores() {
             <CardTitle>Catalogo</CardTitle>
             <CardDescription>{total} registros</CardDescription>
           </div>
-          <Buscador value={q} onChange={setQ} placeholder="Buscar nombre, NIT o correo…" />
+          <Buscador value={q} onChange={setQ} placeholder="Buscar nombre, codigo, principio o laboratorio…" />
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          {proveedores.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No hay proveedores con ese filtro</p>
+          {medicamentos.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No hay medicamentos con ese filtro</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>NIT</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Correo</TableHead>
+                  <TableHead>Codigo de barras</TableHead>
+                  <TableHead>Laboratorio</TableHead>
+                  <TableHead>Precio venta</TableHead>
+                  <TableHead>Receta</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Facturas</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {proveedores.map((row) => {
+                {medicamentos.map((row) => {
                   const id = field(row, 'ID')
-                  const facturas = Number(field(row, 'TOTAL_COMPRAS') ?? 0)
                   const estado = String(field(row, 'ESTADO') || 'ACTIVO').toUpperCase()
                   const activo = estado === 'ACTIVO'
+                  const receta = Number(field(row, 'RECETA_REQUERIDA')) === 1
                   return (
                     <TableRow key={id}>
                       <TableCell className="font-medium">{field(row, 'NOMBRE') || '—'}</TableCell>
-                      <TableCell>{field(row, 'NIT') || '—'}</TableCell>
-                      <TableCell>{field(row, 'TELEFONO') || '—'}</TableCell>
-                      <TableCell>{field(row, 'EMAIL') || '—'}</TableCell>
+                      <TableCell>{field(row, 'CODIGO_BARRA') || '—'}</TableCell>
+                      <TableCell>{field(row, 'LABORATORIO') || '—'}</TableCell>
+                      <TableCell>{gtq(field(row, 'PRECIO_VENTA'))}</TableCell>
                       <TableCell>
-                        <Badge variant={activo ? 'ok' : 'danger'}>{activo ? 'Activo' : 'Inactivo'}</Badge>
+                        {receta ? <Badge variant="warn">Receta</Badge> : <Badge variant="secondary">No</Badge>}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{facturas}</Badge>
+                        <Badge variant={activo ? 'ok' : 'danger'}>{activo ? 'Activo' : 'Inactivo'}</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
@@ -324,13 +346,7 @@ export default function Proveedores() {
                             </Button>
                           ) : null}
                           {mantener && !activo ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={saving}
-                              onClick={() => handleReactivar(row)}
-                            >
+                            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => handleReactivar(row)}>
                               Reactivar
                             </Button>
                           ) : null}
@@ -355,32 +371,48 @@ export default function Proveedores() {
       </Card>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{formMode === 'create' ? 'Nuevo proveedor' : 'Editar proveedor'}</DialogTitle>
-            <DialogDescription>El NIT es unico. El nombre y NIT son obligatorios</DialogDescription>
+            <DialogTitle>{formMode === 'create' ? 'Nuevo medicamento' : 'Editar medicamento'}</DialogTitle>
+            <DialogDescription>El codigo de barras es unico, tambien si el SKU esta inactivo</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave} className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="nombreProveedor">Nombre</Label>
-              <Input id="nombreProveedor" value={form.nombre} onChange={(e) => setCampo('nombre', e.target.value)} />
+              <Label htmlFor="nombreMed">Nombre</Label>
+              <Input id="nombreMed" value={form.nombre} onChange={(e) => setCampo('nombre', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="nitProveedor">NIT</Label>
-              <Input id="nitProveedor" value={form.nit} onChange={(e) => setCampo('nit', e.target.value)} />
+              <Label htmlFor="codigoMed">Codigo de barras</Label>
+              <Input id="codigoMed" value={form.codigoBarra} onChange={(e) => setCampo('codigoBarra', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="telProveedor">Telefono</Label>
-              <Input id="telProveedor" value={form.telefono} onChange={(e) => setCampo('telefono', e.target.value)} />
+              <Label htmlFor="labMed">Laboratorio</Label>
+              <Input id="labMed" value={form.laboratorio} onChange={(e) => setCampo('laboratorio', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="emailProveedor">Correo</Label>
-              <Input id="emailProveedor" type="email" value={form.email} onChange={(e) => setCampo('email', e.target.value)} />
+              <Label htmlFor="principioMed">Principio activo</Label>
+              <Input id="principioMed" value={form.principioActivo} onChange={(e) => setCampo('principioActivo', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="dirProveedor">Direccion</Label>
-              <Input id="dirProveedor" value={form.direccion} onChange={(e) => setCampo('direccion', e.target.value)} />
+              <Label htmlFor="presentacionMed">Presentación</Label>
+              <Input id="presentacionMed" value={form.presentacion} onChange={(e) => setCampo('presentacion', e.target.value)} />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="precioMed">Precio de venta</Label>
+              <Input id="precioMed" type="number" min="0" step="0.01" value={form.precioVenta} onChange={(e) => setCampo('precioVenta', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="costoMed">Costo</Label>
+              <Input id="costoMed" type="number" min="0" step="0.01" value={form.costo} onChange={(e) => setCampo('costo', e.target.value)} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="descMed">Descripción</Label>
+              <Input id="descMed" value={form.descripcion} onChange={(e) => setCampo('descripcion', e.target.value)} />
+            </div>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input type="checkbox" checked={form.receta} onChange={(e) => setCampo('receta', e.target.checked)} />
+              Requiere receta
+            </label>
             <DialogFooter className="sm:col-span-2">
               <Button type="button" variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
                 Cancelar
@@ -396,35 +428,35 @@ export default function Proveedores() {
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{field(detail, 'NOMBRE') || 'Proveedor'}</DialogTitle>
-            <DialogDescription>NIT {field(detail, 'NIT') || '—'}</DialogDescription>
+            <DialogTitle>{field(detail, 'NOMBRE') || 'Medicamento'}</DialogTitle>
+            <DialogDescription>{field(detail, 'CODIGO_BARRA') || '—'}</DialogDescription>
           </DialogHeader>
           {detail ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                {field(detail, 'TELEFONO') || 'Sin teléfono'} · {field(detail, 'EMAIL') || 'Sin correo'}
+                {field(detail, 'LABORATORIO') || 'Sin laboratorio'} · {gtq(field(detail, 'PRECIO_VENTA'))}
+                {Number(field(detail, 'RECETA_REQUERIDA')) === 1 ? ' · Requiere receta' : ''}
               </p>
-              <p className="text-sm">{field(detail, 'DIRECCION') || 'Sin dirección'}</p>
-              <p className="text-sm text-muted-foreground">{field(detail, 'TOTAL_COMPRAS') ?? 0} facturas en total</p>
-              {comprasRecientes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sin compras recientes.</p>
+              <p className="text-sm">{field(detail, 'DESCRIPCION') || 'Sin descripción'}</p>
+              {lotesRecientes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin lotes recientes.</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Factura</TableHead>
-                      <TableHead>Fecha</TableHead>
+                      <TableHead>Lote</TableHead>
                       <TableHead>Sucursal</TableHead>
-                      <TableHead>Total</TableHead>
+                      <TableHead>Cantidad</TableHead>
+                      <TableHead>Vence</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {comprasRecientes.map((compra) => (
-                      <TableRow key={field(compra, 'ID')}>
-                        <TableCell>{field(compra, 'NUMERO_FACTURA') || '—'}</TableCell>
-                        <TableCell>{field(compra, 'FECHA_COMPRA') || '—'}</TableCell>
-                        <TableCell>{field(compra, 'SUCURSAL_NOMBRE') || '—'}</TableCell>
-                        <TableCell>{gtq(field(compra, 'TOTAL_COMPRA'))}</TableCell>
+                    {lotesRecientes.map((lote) => (
+                      <TableRow key={field(lote, 'ID')}>
+                        <TableCell>{field(lote, 'LOTE') || '—'}</TableCell>
+                        <TableCell>{field(lote, 'SUCURSAL_NOMBRE') || '—'}</TableCell>
+                        <TableCell>{field(lote, 'CANTIDAD') ?? '—'}</TableCell>
+                        <TableCell>{field(lote, 'FECHA_VENCIMIENTO') || '—'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -440,9 +472,9 @@ export default function Proveedores() {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Desactivar proveedor</DialogTitle>
+            <DialogTitle>Desactivar medicamento</DialogTitle>
             <DialogDescription>
-              El proveedor deja de aparecer en compras pero las facturas no se borran.
+              La baja es lógica. Un inactivo no sale en compras ni en el POS. Los lotes y tickets no se borran.
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">

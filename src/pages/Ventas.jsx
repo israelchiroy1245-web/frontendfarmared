@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Ban, Eye, Plus, Receipt, Trash2 } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Ban, Eye, Minus, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
-import Buscador from '@/components/Buscador'
+import { Button, buttonVariants } from '@/components/ui/button'
 import Paginacion from '@/components/Paginacion'
 import {
   Dialog,
@@ -19,7 +18,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getUser } from '@/lib/auth'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -34,356 +34,466 @@ function field(row, ...keys) {
   return null
 }
 
-const METODOS = ['EFECTIVO', 'TARJETA', 'TRANSFERENCIA']
-const TIPOS_DOC = ['TICKET', 'FACTURA']
-const ESTADOS = ['EMITIDA', 'ANULADA']
-
-function pagoVacio() {
-  return { metodoPago: 'EFECTIVO', monto: '', referencia: '' }
-}
-
-function badgeEstado(estado) {
-  const valor = String(estado || '').toUpperCase()
-  if (valor === 'EMITIDA') return 'ok'
-  if (valor === 'ANULADA') return 'danger'
-  return 'secondary'
-}
-
 const selectClass =
   'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
-function lineaVacia() {
-  return { medicamentoId: '', cantidad: '1' }
+function hoy() {
+  const fecha = new Date()
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0')
+  const dia = String(fecha.getDate()).padStart(2, '0')
+  return `${fecha.getFullYear()}-${mes}-${dia}`
 }
 
-function puedeCobrar() {
-  const rol = getRol()
-  return rol === 'ADMIN' || rol === 'CAJERO'
+function ivaIncluido(total) {
+  return Math.round(Number(total || 0) * 12 / 112 * 100) / 100
+}
+
+function loteVigente(row) {
+  const cantidad = Number(field(row, 'CANTIDAD', 'Cantidad') || 0)
+  if (!(cantidad > 0)) return false
+  if (Number(field(row, 'VENCIDO')) === 1) return false
+  const fecha = String(field(row, 'FECHA_VENCIMIENTO') || '')
+  if (fecha && fecha < hoy()) return false
+  return true
+}
+
+function agruparStock(filas) {
+  const mapa = new Map()
+  for (const row of filas) {
+    if (!loteVigente(row)) continue
+    const id = field(row, 'MEDICAMENTO_ID')
+    if (id == null) continue
+    const cantidad = Number(field(row, 'CANTIDAD', 'Cantidad') || 0)
+    const fecha = String(field(row, 'FECHA_VENCIMIENTO') || '')
+    const lote = field(row, 'LOTE', 'Lote') || ''
+    const actual = mapa.get(id)
+    if (!actual) {
+      mapa.set(id, {
+        medicamentoId: id,
+        nombre: field(row, 'NOMBRE_MEDICAMENTO') || 'Medicamento',
+        codigoBarra: field(row, 'CODIGO_BARRA') || '',
+        lote,
+        cantidad,
+        fechaVencimiento: fecha,
+        precio: Number(field(row, 'PRECIO_VENTA') || 0),
+        receta: Number(field(row, 'RECETA_REQUERIDA')) === 1,
+        lotes: 1,
+      })
+      continue
+    }
+    actual.cantidad += cantidad
+    actual.lotes += 1
+    if (Number(field(row, 'RECETA_REQUERIDA')) === 1) actual.receta = true
+    if (fecha && (!actual.fechaVencimiento || fecha < actual.fechaVencimiento)) {
+      actual.fechaVencimiento = fecha
+      actual.lote = lote || actual.lote
+    }
+  }
+  return [...mapa.values()]
 }
 
 export default function Ventas() {
-  const cobrar = puedeCobrar()
-  const [ventas, setVentas] = useState([])
+  const cobrar = getRol() === 'ADMIN' || getRol() === 'CAJERO'
+  const [params] = useSearchParams()
+  const usuario = getUser()
   const [sucursales, setSucursales] = useState([])
-  const [medicamentos, setMedicamentos] = useState([])
-  const [sucursalId, setSucursalId] = useState('')
-  const [metodoPago, setMetodoPago] = useState('')
-  const [estado, setEstado] = useState('')
-  const [tipoDoc, setTipoDoc] = useState('')
-  const [fechaDesde, setFechaDesde] = useState('')
-  const [fechaHasta, setFechaHasta] = useState('')
-  const [q, setQ] = useState('')
-  const qDebounced = useDebounced(q)
+  const [sucursalId, setSucursalId] = useState(() => {
+    if (sucursalFijada()) return sucursalAsignada()
+    return params.get('sucursal') || String(usuario?.sucursalId || '')
+  })
+  const [turno, setTurno] = useState(null)
+  const [cajaCerrada, setCajaCerrada] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const busquedaDebounced = useDebounced(busqueda, 300)
+  const [coincidencias, setCoincidencias] = useState([])
+  const [buscando, setBuscando] = useState(false)
+  const [carrito, setCarrito] = useState([])
+  const [nit, setNit] = useState('CF')
+  const [nombreFactura, setNombreFactura] = useState('Consumidor Final')
+  const [efectivo, setEfectivo] = useState('')
+  const [tarjeta, setTarjeta] = useState('')
+  const [transferencia, setTransferencia] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [ticket, setTicket] = useState(null)
+
+  const [ventas, setVentas] = useState([])
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
-  const [monto, setMonto] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [saving, setSaving] = useState(false)
-
-  const [formOpen, setFormOpen] = useState(false)
-  const [formSucursal, setFormSucursal] = useState('')
-  const [formTipo, setFormTipo] = useState('TICKET')
-  const [nit, setNit] = useState('CF')
-  const [nombreFactura, setNombreFactura] = useState('Consumidor Final')
-  const [lineas, setLineas] = useState([lineaVacia()])
-  const [pagos, setPagos] = useState([pagoVacio()])
-
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [detail, setDetail] = useState(null)
-  const [anularOpen, setAnularOpen] = useState(false)
   const [anularTarget, setAnularTarget] = useState(null)
-
+  const [detail, setDetail] = useState(null)
   const reqId = useRef(0)
 
   const loadCatalogos = useCallback(async () => {
-    const [suc, med] = await Promise.all([
-      api('/api/catalogos/sucursales'),
-      api('/api/catalogos/medicamentos'),
-    ])
+    const suc = await api('/api/catalogos/sucursales')
     setSucursales(Array.isArray(suc?.datos) ? suc.datos : [])
-    setMedicamentos(Array.isArray(med?.datos) ? med.datos : [])
   }, [])
 
   const loadVentas = useCallback(async () => {
     const id = ++reqId.current
-    const query = { limit, offset }
+    const query = { limit, offset, fechaDesde: hoy() }
     if (sucursalId) query.sucursalId = sucursalId
-    if (metodoPago) query.metodoPago = metodoPago
-    if (estado) query.estado = estado
-    if (tipoDoc) query.tipoDoc = tipoDoc
-    if (fechaDesde) query.fechaDesde = fechaDesde
-    if (fechaHasta) query.fechaHasta = fechaHasta
-    if (qDebounced.trim()) query.q = qDebounced.trim()
     const data = await api('/api/ventas', { query })
     if (id !== reqId.current) return
     setVentas(Array.isArray(data?.datos) ? data.datos : [])
     setTotal(Number(data?.paginacion?.total ?? data?.total ?? 0))
-    setMonto(Number(data?.resumen?.monto ?? 0))
-  }, [limit, offset, sucursalId, metodoPago, estado, tipoDoc, fechaDesde, fechaHasta, qDebounced])
+  }, [limit, offset, sucursalId])
 
   useEffect(() => {
-    let alive = true
-    ;(async () => {
-      try {
-        await loadCatalogos()
-        if (alive) setError(null)
-      } catch (e) {
-        if (alive) setError(e.message)
-      }
-    })()
-    return () => {
-      alive = false
-    }
+    loadCatalogos().catch((e) => toast.error(e.message || 'No se cargaron los catálogos'))
   }, [loadCatalogos])
 
   useEffect(() => {
-    setOffset(0)
-  }, [sucursalId, metodoPago, estado, tipoDoc, fechaDesde, fechaHasta, qDebounced, limit])
+    if (sucursalFijada()) {
+      setSucursalId(sucursalAsignada())
+      return
+    }
+    const desdeUrl = params.get('sucursal')
+    if (desdeUrl) setSucursalId(desdeUrl)
+  }, [params])
 
   useEffect(() => {
-    let alive = true
-    ;(async () => {
-      setLoading(true)
-      try {
-        await loadVentas()
-        if (alive) setError(null)
-      } catch (e) {
-        if (alive) setError(e.message)
-      } finally {
-        if (alive) setLoading(false)
-      }
-    })()
-    return () => {
-      alive = false
+    if (!sucursalId) {
+      setTurno(null)
+      setCajaCerrada(false)
+      return undefined
     }
+    let vivo = true
+    api('/api/caja/abierta', { query: { sucursalId } })
+      .then((data) => {
+        if (!vivo) return
+        setTurno(data.datos || data)
+        setCajaCerrada(false)
+      })
+      .catch(() => {
+        if (!vivo) return
+        setTurno(null)
+        setCajaCerrada(true)
+      })
+    return () => {
+      vivo = false
+    }
+  }, [sucursalId])
+
+  useEffect(() => {
+    setOffset(0)
+  }, [sucursalId, limit])
+
+  useEffect(() => {
+    loadVentas().catch((e) => toast.error(e.message || 'No se cargaron las ventas del día'))
   }, [loadVentas])
 
-  function abrirAlta() {
-    setFormSucursal(sucursalId)
-    setFormTipo('TICKET')
-    setNit('CF')
-    setNombreFactura('Consumidor Final')
-    setLineas([lineaVacia()])
-    setPagos([pagoVacio()])
-    setFormOpen(true)
-  }
+  const estimado = carrito.reduce((suma, linea) => suma + linea.precio * linea.cantidad, 0)
+  const iva = ivaIncluido(estimado)
+  const subtotal = Math.round((estimado - iva) * 100) / 100
+  const pagosPreview = []
+  if (Number(efectivo) > 0) pagosPreview.push(Number(efectivo))
+  if (Number(tarjeta) > 0) pagosPreview.push(Number(tarjeta))
+  if (Number(transferencia) > 0) pagosPreview.push(Number(transferencia))
+  const recibido = pagosPreview.reduce((suma, n) => suma + n, 0)
+  const cubre = carrito.length > 0 && recibido + 0.001 >= estimado
+  const faltante = Math.max(0, Math.round((estimado - recibido) * 100) / 100)
+  const vuelto = cubre ? Math.max(0, Math.round((recibido - estimado) * 100) / 100) : 0
+  const puedeCarrito = cobrar && Boolean(turno)
+  const consulta = busquedaDebounced.trim()
 
-  function setLinea(index, key, value) {
-    setLineas((prev) => prev.map((linea, i) => (i === index ? { ...linea, [key]: value } : linea)))
-  }
-
-  async function handleCreate(e) {
-    e.preventDefault()
-    if (!formSucursal) {
-      toast.error('La sucursal es obligatoria')
-      return
+  useEffect(() => {
+    if (!puedeCarrito || !sucursalId || !consulta) {
+      setCoincidencias([])
+      setBuscando(false)
+      return undefined
     }
-    const items = []
-    for (const linea of lineas) {
-      const cantidad = Number(linea.cantidad)
-      if (!linea.medicamentoId) {
-        toast.error('Cada línea necesita un medicamento')
-        return
-      }
-      if (!Number.isFinite(cantidad) || cantidad <= 0) {
-        toast.error('La cantidad debe ser mayor a cero')
-        return
-      }
-      items.push({ medicamentoId: Number(linea.medicamentoId), cantidad })
-    }
-
-    const pagosBody = []
-    for (const pago of pagos) {
-      if (String(pago.monto).trim() === '') continue
-      const monto = Number(pago.monto)
-      if (!Number.isFinite(monto) || monto <= 0) {
-        toast.error('Cada pago con monto debe ser mayor a cero')
-        return
-      }
-      pagosBody.push({
-        metodoPago: pago.metodoPago,
-        monto,
-        referencia: pago.referencia.trim() || undefined,
+    let vivo = true
+    setBuscando(true)
+    api('/api/inventario', { query: { sucursalId, q: consulta, limit: 8 } })
+      .then((data) => {
+        if (!vivo) return
+        const filas = Array.isArray(data?.datos) ? data.datos : []
+        setCoincidencias(agruparStock(filas).slice(0, 8))
       })
+      .catch((err) => {
+        if (!vivo) return
+        setCoincidencias([])
+        toast.error(err.message || 'No se pudo buscar el inventario')
+      })
+      .finally(() => {
+        if (vivo) setBuscando(false)
+      })
+    return () => {
+      vivo = false
     }
-    if (pagosBody.length === 0 && pagos.length > 1) {
-      toast.error('En un pago mixto indica el monto de cada forma')
+  }, [consulta, puedeCarrito, sucursalId])
+
+  function agregar(med) {
+    const id = med.medicamentoId
+    const precio = Number(med.precio || 0)
+    if (med.receta) {
+      toast.message('Requiere receta (MSPAS). El cobro no se bloquea.')
+    }
+    setCarrito((prev) => {
+      const ya = prev.find((linea) => linea.medicamentoId === id)
+      if (ya) {
+        return prev.map((linea) => (
+          linea.medicamentoId === id ? { ...linea, cantidad: linea.cantidad + 1, receta: linea.receta || med.receta } : linea
+        ))
+      }
+      return [...prev, {
+        medicamentoId: id,
+        nombre: med.nombre || 'Medicamento',
+        precio,
+        cantidad: 1,
+        receta: Boolean(med.receta),
+      }]
+    })
+    setBusqueda('')
+    setCoincidencias([])
+  }
+
+  function cambiarCantidad(id, delta) {
+    setCarrito((prev) => prev
+      .map((linea) => (
+        linea.medicamentoId === id ? { ...linea, cantidad: linea.cantidad + delta } : linea
+      ))
+      .filter((linea) => linea.cantidad > 0))
+  }
+
+  async function cobrarTicket(e) {
+    e.preventDefault()
+    if (!puedeCarrito || carrito.length === 0) return
+    const pagos = []
+    if (Number(efectivo) > 0) pagos.push({ metodoPago: 'EFECTIVO', monto: Number(efectivo) })
+    if (Number(tarjeta) > 0) pagos.push({ metodoPago: 'TARJETA', monto: Number(tarjeta) })
+    if (Number(transferencia) > 0) pagos.push({ metodoPago: 'TRANSFERENCIA', monto: Number(transferencia) })
+    if (pagos.length === 0) {
+      toast.error('Indique efectivo, tarjeta o transferencia')
       return
     }
-
+    const suma = pagos.reduce((acc, pago) => acc + pago.monto, 0)
+    if (suma + 0.001 < estimado) {
+      toast.error('Los pagos no cubren el total')
+      return
+    }
     setSaving(true)
     try {
       const data = await api('/api/ventas', {
         method: 'POST',
         body: {
-          sucursalId: Number(formSucursal),
-          tipoDoc: formTipo,
+          sucursalId: Number(sucursalId),
+          tipoDoc: 'TICKET',
           nit: nit.trim() || 'CF',
           nombreFactura: nombreFactura.trim() || 'Consumidor Final',
-          items,
-          ...(pagosBody.length > 0
-            ? { pagos: pagosBody }
-            : { metodoPago: pagos[0]?.metodoPago || 'EFECTIVO' }),
+          descuento: 0,
+          montoRecibido: Number(efectivo) > 0 ? Number(efectivo) : 0,
+          items: carrito.map((linea) => ({ medicamentoId: linea.medicamentoId, cantidad: linea.cantidad })),
+          pagos,
         },
       })
-      toast.success(data.mensaje || 'Venta emitida')
-      setFormOpen(false)
+      setTicket(data)
+      setCarrito([])
+      setEfectivo('')
+      setTarjeta('')
+      setTransferencia('')
+      toast.success(data.mensaje || `Ticket ${data.folio || ''} emitido`)
       await loadVentas()
     } catch (err) {
-      toast.error(err.message || 'No se pudo emitir la venta')
+      toast.error(err.message || 'No se pudo cobrar')
     } finally {
       setSaving(false)
     }
   }
 
-  function setPago(index, key, value) {
-    setPagos((prev) => prev.map((pago, i) => (i === index ? { ...pago, [key]: value } : pago)))
-  }
-
-  async function handleAnular() {
+  async function confirmarAnular() {
     const id = field(anularTarget, 'ID')
     if (!id) return
     setSaving(true)
     try {
       const data = await api(`/api/ventas/${id}/anular`, { method: 'POST' })
       toast.success(data.mensaje || 'Ticket anulado')
-      setAnularOpen(false)
       setAnularTarget(null)
       await loadVentas()
     } catch (err) {
-      toast.error(err.message || 'No se pudo anular el ticket')
+      toast.error(err.message || 'No se pudo anular')
     } finally {
       setSaving(false)
     }
   }
 
   async function openDetail(id) {
-    setDetailOpen(true)
     setDetail(null)
     try {
       const data = await api(`/api/ventas/${id}`)
       setDetail(data.datos)
     } catch (err) {
-      toast.error(err.message || 'No se pudo cargar la venta')
-      setDetailOpen(false)
+      toast.error(err.message || 'No se pudo abrir el ticket')
     }
   }
 
-  if (loading && ventas.length === 0 && !error) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-9 w-56" />
-        <Skeleton className="h-96 rounded-xl" />
-      </div>
-    )
-  }
-
-  if (error && ventas.length === 0) {
-    return <p className="text-destructive">No se pudieron cargar las ventas: {error}</p>
-  }
-
-  const itemsDetalle = detail?.ITEMS || detail?.items || []
-  const pagosDetalle = detail?.PAGOS || detail?.pagos || []
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · Ventas</p>
-          <h1 className="font-display text-3xl">Ventas</h1>
-          <p className="mt-1 max-w-2xl text-muted-foreground">
-            Ticket de sucursal. Hace falta un turno de caja abierto. El lote lo elige el vencimiento y el pago puede ser mixto.
-          </p>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · POS</p>
+          <h1 className="font-display text-3xl">Punto de venta</h1>
         </div>
-        {cobrar ? (
-          <Button className="gap-2" onClick={abrirAlta}>
-            <Plus className="h-4 w-4" />
-            Emitir venta
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <select className={`${selectClass} w-auto max-w-64`} aria-label="Sucursal" value={sucursalId} disabled={sucursalFijada()} onChange={(e) => setSucursalId(e.target.value)}>
+            {sucursalFijada() ? null : <option value="">Sucursal</option>}
+            {sucursales.map((s) => (
+              <option key={field(s, 'ID')} value={field(s, 'ID')}>{field(s, 'Nombre')}</option>
+            ))}
+          </select>
+          <Link to="/caja" className={`${buttonVariants({ variant: 'outline' })} shrink-0`}>Ver turno</Link>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {cajaCerrada ? (
         <Card>
-          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-            <CardDescription>Ventas</CardDescription>
-            <div className="rounded-md bg-secondary p-2 text-primary">
-              <Receipt className="h-4 w-4" />
-            </div>
+          <CardHeader>
+            <CardTitle>Caja cerrada</CardTitle>
+            <CardDescription>Esta sucursal no puede cobrar hasta que alguien abra el turno</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="font-display text-2xl font-semibold">{total}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Total con el filtro actual</p>
+            <Link to="/caja" className={buttonVariants()}>Ir a caja</Link>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Monto cobrado</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-2xl font-semibold">{gtq(monto)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Suma de totales de venta</p>
-          </CardContent>
-        </Card>
-      </div>
+      ) : null}
+
+      {puedeCarrito ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Carrito</CardTitle>
+              <CardDescription>Busca por nombre o codigo de barras</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-2 left-2.5 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-8" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Nombre o código de barras" />
+              </div>
+              {busqueda.trim() === consulta && consulta && !buscando && coincidencias.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay existencias en esta sucursal</p>
+              ) : null}
+              {coincidencias.length > 0 ? (
+                <div className="rounded-lg border border-border">
+                  {coincidencias.map((med) => (
+                    <button
+                      key={med.medicamentoId}
+                      type="button"
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted"
+                      onClick={() => agregar(med)}
+                    >
+                      <span>
+                        {med.nombre}
+                        <span className="ml-2 text-xs text-muted-foreground">{med.codigoBarra}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          Lote {med.lote || '—'}
+                          {med.lotes > 1 ? ` · ${med.lotes} lotes` : ''}
+                          {' · '}
+                          {med.cantidad} u · vence {med.fechaVencimiento || '—'}
+                        </span>
+                      </span>
+                      <span>{gtq(med.precio)}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {carrito.length === 0 ? (
+                <p className="text-sm text-muted-foreground">El carrito esta vacio</p>
+              ) : carrito.map((linea) => (
+                <div key={linea.medicamentoId} className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      {linea.nombre}
+                      {linea.receta ? <Badge variant="warn">Receta</Badge> : null}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{gtq(linea.precio)}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button type="button" variant="outline" size="icon-sm" onClick={() => cambiarCantidad(linea.medicamentoId, -1)}>
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-6 text-center text-sm">{linea.cantidad}</span>
+                    <Button type="button" variant="outline" size="icon-sm" onClick={() => cambiarCantidad(linea.medicamentoId, 1)}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Cobro</CardTitle>
+              <CardDescription>
+                Turno #{field(turno, 'ID') || '—'} · IVA incluido en el precio.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={cobrarTicket} className="space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  <p>Subtotal {gtq(subtotal)}</p>
+                  <p>IVA {gtq(iva)}</p>
+                  <p className="font-medium">Total {gtq(estimado)}</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nit">NIT</Label>
+                    <Input id="nit" value={nit} onChange={(e) => setNit(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nombreFactura">Nombre</Label>
+                    <Input id="nombreFactura" value={nombreFactura} onChange={(e) => setNombreFactura(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="efectivo">Efectivo recibido</Label>
+                    <Input id="efectivo" type="number" min="0" step="0.01" value={efectivo} onChange={(e) => setEfectivo(e.target.value)} placeholder="0.00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="tarjeta">Tarjeta</Label>
+                    <Input id="tarjeta" type="number" min="0" step="0.01" value={tarjeta} onChange={(e) => setTarjeta(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transferencia">Transferencia</Label>
+                    <Input id="transferencia" type="number" min="0" step="0.01" value={transferencia} onChange={(e) => setTransferencia(e.target.value)} />
+                  </div>
+                  <p className="self-end text-sm text-muted-foreground">
+                    {carrito.length === 0
+                      ? 'Agregue productos al carrito'
+                      : pagosPreview.length === 0
+                        ? 'Indique efectivo, tarjeta o transferencia'
+                        : cubre
+                          ? `Vuelto ${gtq(vuelto)}`
+                          : `Falta ${gtq(faltante)}`}
+                  </p>
+                </div>
+                <Button type="submit" disabled={saving || !cubre}>
+                  {saving ? 'Cobrando…' : 'Cobrar'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
 
       <Card>
-        <CardHeader className="gap-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <CardTitle>Facturas de venta</CardTitle>
-              <CardDescription>{total} registros</CardDescription>
-            </div>
-            <Buscador value={q} onChange={setQ} placeholder="Buscar folio, NIT, sucursal o cliente…" />
-          </div>
-          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            <select className={selectClass} aria-label="Sucursal" value={sucursalId} onChange={(e) => setSucursalId(e.target.value)}>
-              <option value="">Todas las sucursales</option>
-              {sucursales.map((s) => (
-                <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                  {field(s, 'Nombre')}
-                </option>
-              ))}
-            </select>
-            <select className={selectClass} aria-label="Método de pago" value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}>
-              <option value="">Todos los pagos</option>
-              {METODOS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <select className={selectClass} aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
-              <option value="">Todos los estados</option>
-              {ESTADOS.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-            <select className={selectClass} aria-label="Tipo de documento" value={tipoDoc} onChange={(e) => setTipoDoc(e.target.value)}>
-              <option value="">Ticket y factura</option>
-              {TIPOS_DOC.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-            <Input type="date" aria-label="Desde" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
-            <Input type="date" aria-label="Hasta" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
-          </div>
+        <CardHeader>
+          <CardTitle>Tickets de hoy</CardTitle>
+          <CardDescription>{total} en la sucursal elegida</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {ventas.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No hay ventas con ese filtro.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">No hay tickets hoy</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Folio</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Sucursal</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Pagos</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -393,13 +503,11 @@ export default function Ventas() {
                   return (
                     <TableRow key={id}>
                       <TableCell className="font-medium">{field(row, 'FOLIO') || '—'}</TableCell>
-                      <TableCell>{field(row, 'FECHA') || '—'}</TableCell>
-                      <TableCell>{field(row, 'SUCURSAL_NOMBRE') || '—'}</TableCell>
-                      <TableCell>{field(row, 'NOMBRE_FACTURA') || field(row, 'CLIENTE_NOMBRE') || 'Consumidor Final'}</TableCell>
+                      <TableCell>{field(row, 'NOMBRE_FACTURA') || 'Consumidor Final'}</TableCell>
                       <TableCell>{field(row, 'METODOS_PAGO') || '—'}</TableCell>
                       <TableCell>{gtq(field(row, 'TOTAL'))}</TableCell>
                       <TableCell>
-                        <Badge variant={badgeEstado(est)}>{est || '—'}</Badge>
+                        <Badge variant={est === 'ANULADA' ? 'danger' : 'ok'}>{est || '—'}</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
@@ -407,16 +515,7 @@ export default function Ventas() {
                             <Eye className="h-4 w-4" />
                           </Button>
                           {cobrar && est === 'EMITIDA' ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              title="Anular"
-                              onClick={() => {
-                                setAnularTarget(row)
-                                setAnularOpen(true)
-                              }}
-                            >
+                            <Button type="button" variant="ghost" size="icon-sm" title="Anular" onClick={() => setAnularTarget(row)}>
                               <Ban className="h-4 w-4" />
                             </Button>
                           ) : null}
@@ -440,224 +539,81 @@ export default function Ventas() {
         </CardContent>
       </Card>
 
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <Dialog open={Boolean(ticket)} onOpenChange={(open) => { if (!open) setTicket(null) }}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Emitir venta</DialogTitle>
-            <DialogDescription>
-              La sucursal necesita un turno de caja abierto. El lote lo elige el vencimiento. Si dejas el monto vacío, el cobro queda en un solo método por el total del ticket.
-            </DialogDescription>
+            <DialogTitle>Ticket {ticket?.folio || ''}</DialogTitle>
+            <DialogDescription>{ticket?.mensaje || 'Venta emitida'}</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="formSucursal">Sucursal</Label>
-                <select id="formSucursal" className={selectClass} value={formSucursal} onChange={(e) => setFormSucursal(e.target.value)}>
-                  <option value="">Selecciona</option>
-                  {sucursales.map((s) => (
-                    <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                      {field(s, 'Nombre')}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="formTipo">Documento</Label>
-                <select id="formTipo" className={selectClass} value={formTipo} onChange={(e) => setFormTipo(e.target.value)}>
-                  {TIPOS_DOC.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="nit">NIT</Label>
-                <Input id="nit" value={nit} onChange={(e) => setNit(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="nombreFactura">Nombre en factura</Label>
-                <Input id="nombreFactura" value={nombreFactura} onChange={(e) => setNombreFactura(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {lineas.map((linea, index) => (
-                <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-5">
-                  <div className="space-y-1.5 sm:col-span-3">
-                    <Label>Medicamento</Label>
-                    <select className={selectClass} value={linea.medicamentoId} onChange={(e) => setLinea(index, 'medicamentoId', e.target.value)}>
-                      <option value="">Selecciona</option>
-                      {medicamentos.map((m) => (
-                        <option key={field(m, 'ID')} value={field(m, 'ID')}>
-                          {field(m, 'NOMBRE_MEDICAMENTO')}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label>Cantidad</Label>
-                    <div className="flex gap-1">
-                      <Input type="number" min="1" value={linea.cantidad} onChange={(e) => setLinea(index, 'cantidad', e.target.value)} />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        title="Quitar línea"
-                        disabled={lineas.length === 1}
-                        onClick={() => setLineas((prev) => prev.filter((_, i) => i !== index))}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <Button type="button" variant="outline" onClick={() => setLineas((prev) => [...prev, lineaVacia()])}>
-                Agregar línea
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-sm font-medium">Pagos</p>
-              {pagos.map((pago, index) => (
-                <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-6">
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label>Método</Label>
-                    <select className={selectClass} value={pago.metodoPago} onChange={(e) => setPago(index, 'metodoPago', e.target.value)}>
-                      {METODOS.map((m) => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label>Monto</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="Total"
-                      value={pago.monto}
-                      onChange={(e) => setPago(index, 'monto', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label>Referencia</Label>
-                    <div className="flex gap-1">
-                      <Input value={pago.referencia} onChange={(e) => setPago(index, 'referencia', e.target.value)} />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        title="Quitar pago"
-                        disabled={pagos.length === 1}
-                        onClick={() => setPagos((prev) => prev.filter((_, i) => i !== index))}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <Button type="button" variant="outline" onClick={() => setPagos((prev) => [...prev, pagoVacio()])}>
-                Agregar pago
-              </Button>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>Cancelar</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Emitiendo…' : 'Emitir venta'}</Button>
-            </DialogFooter>
-          </form>
+          <div className="space-y-1 text-sm">
+            <p>IVA {gtq(ticket?.iva)}</p>
+            <p>Total {gtq(ticket?.total)}</p>
+            <p>Vuelto {gtq(ticket?.vuelto)}</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={() => setTicket(null)}>Listo</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <Dialog open={Boolean(detail)} onOpenChange={(open) => { if (!open) setDetail(null) }}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{field(detail, 'FOLIO') || 'Venta'}</DialogTitle>
+            <DialogTitle>{field(detail, 'FOLIO') || 'Ticket'}</DialogTitle>
             <DialogDescription>
-              {field(detail, 'SUCURSAL_NOMBRE') || '—'} · {field(detail, 'FECHA') || '—'} · {field(detail, 'TIPO_DOC') || '—'}
+              {field(detail, 'ESTADO') || '—'} · {field(detail, 'CAJERO_NOMBRE') || '—'}
             </DialogDescription>
           </DialogHeader>
-          {detail ? (
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <Badge variant={badgeEstado(field(detail, 'ESTADO'))}>{field(detail, 'ESTADO') || '—'}</Badge>
-                <span>
-                  {field(detail, 'NOMBRE_FACTURA') || 'Consumidor Final'} · NIT {field(detail, 'NIT') || 'CF'} · Cajero {field(detail, 'CAJERO_NOMBRE') || '—'}
-                </span>
-              </div>
-              <div className="grid gap-2 text-sm sm:grid-cols-3">
-                <p>Subtotal {gtq(field(detail, 'SUBTOTAL'))}</p>
-                <p>IVA {gtq(field(detail, 'IVA'))}</p>
-                <p>Descuento {gtq(field(detail, 'DESCUENTO'))}</p>
-                <p>Total {gtq(field(detail, 'TOTAL'))}</p>
-                <p>Recibido {gtq(field(detail, 'MONTO_RECIBIDO'))}</p>
-                <p>Vuelto {gtq(field(detail, 'VUELTO'))}</p>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Medicamento</TableHead>
-                    <TableHead>Lote</TableHead>
-                    <TableHead>Cant.</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead>Subtotal</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {itemsDetalle.map((linea) => (
-                    <TableRow key={field(linea, 'ID')}>
-                      <TableCell>{field(linea, 'NOMBRE_MEDICAMENTO') || '—'}</TableCell>
-                      <TableCell>{field(linea, 'LOTE') || '—'}</TableCell>
-                      <TableCell>{field(linea, 'CANTIDAD')}</TableCell>
-                      <TableCell>{gtq(field(linea, 'PRECIO'))}</TableCell>
-                      <TableCell>{gtq(field(linea, 'SUBTOTAL'))}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Método</TableHead>
-                    <TableHead>Monto</TableHead>
-                    <TableHead>Referencia</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagosDetalle.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-muted-foreground">Sin pagos registrados</TableCell>
-                    </TableRow>
-                  ) : pagosDetalle.map((pago) => (
-                    <TableRow key={field(pago, 'ID') || `${field(pago, 'METODO_PAGO')}-${field(pago, 'MONTO')}`}>
-                      <TableCell>{field(pago, 'METODO_PAGO') || '—'}</TableCell>
-                      <TableCell>{gtq(field(pago, 'MONTO'))}</TableCell>
-                      <TableCell>{field(pago, 'REFERENCIA') || '—'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+          <div className="space-y-3 text-sm">
+            <p>NIT {field(detail, 'NIT') || 'CF'}</p>
+            <p>{field(detail, 'NOMBRE_FACTURA') || 'Consumidor Final'}</p>
+            <div className="grid grid-cols-2 gap-1">
+              <p>Subtotal {gtq(field(detail, 'SUBTOTAL'))}</p>
+              <p>IVA {gtq(field(detail, 'IVA'))}</p>
+              <p className="font-medium">Total {gtq(field(detail, 'TOTAL'))}</p>
+              <p>Vuelto {gtq(field(detail, 'VUELTO'))}</p>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Cargando…</p>
-          )}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Lote</TableHead>
+                  <TableHead>Cant.</TableHead>
+                  <TableHead>Precio</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(Array.isArray(field(detail, 'ITEMS')) ? field(detail, 'ITEMS') : []).map((linea) => (
+                  <TableRow key={field(linea, 'ID')}>
+                    <TableCell>{field(linea, 'NOMBRE_MEDICAMENTO') || '—'}</TableCell>
+                    <TableCell>{field(linea, 'LOTE') || '—'}</TableCell>
+                    <TableCell>{field(linea, 'CANTIDAD') ?? '—'}</TableCell>
+                    <TableCell>{gtq(field(linea, 'PRECIO'))}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <ul className="space-y-1">
+              {(Array.isArray(field(detail, 'PAGOS')) ? field(detail, 'PAGOS') : []).map((pago) => (
+                <li key={field(pago, 'ID')}>
+                  {field(pago, 'METODO_PAGO') || '—'} {gtq(field(pago, 'MONTO'))}
+                  {field(pago, 'REFERENCIA') ? ` · ${field(pago, 'REFERENCIA')}` : ''}
+                </li>
+              ))}
+            </ul>
+          </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={anularOpen} onOpenChange={setAnularOpen}>
+      <Dialog open={Boolean(anularTarget)} onOpenChange={(open) => { if (!open) setAnularTarget(null) }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Anular {field(anularTarget, 'FOLIO') || 'ticket'}</DialogTitle>
-            <DialogDescription>
-              Solo un ticket emitido se puede anular. El stock vuelve al lote y la caja deshace el cobro.
-            </DialogDescription>
+            <DialogDescription>El stock vuelve al lote y la caja deshace el cobro</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setAnularOpen(false)} disabled={saving}>Cancelar</Button>
-            <Button type="button" variant="destructive" onClick={handleAnular} disabled={saving}>
-              {saving ? 'Anulando…' : 'Anular ticket'}
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setAnularTarget(null)} disabled={saving}>Cancelar</Button>
+            <Button type="button" variant="destructive" onClick={confirmarAnular} disabled={saving}>Anular ticket</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

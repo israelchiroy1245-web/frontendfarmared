@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import Buscador from '@/components/Buscador'
+import SelectorBusqueda from '@/components/SelectorBusqueda'
 import Paginacion from '@/components/Paginacion'
 import {
   Dialog,
@@ -19,7 +20,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api, gtq } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -43,16 +44,17 @@ function lineaVacia() {
 
 function puedeRegistrar() {
   const rol = getRol()
-  return rol === 'ADMIN' || rol === 'QF'
+  return rol === 'ADMIN' || rol === 'QF' || rol === 'ENCARGADO'
 }
 
 export default function Compras() {
   const registrar = puedeRegistrar()
+  const local = sucursalFijada()
   const [compras, setCompras] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [proveedores, setProveedores] = useState([])
   const [medicamentos, setMedicamentos] = useState([])
-  const [sucursalId, setSucursalId] = useState('')
+  const [sucursalId, setSucursalId] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [proveedorId, setProveedorId] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
@@ -68,7 +70,7 @@ export default function Compras() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [numeroFactura, setNumeroFactura] = useState('')
-  const [formSucursal, setFormSucursal] = useState('')
+  const [formSucursal, setFormSucursal] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [formProveedor, setFormProveedor] = useState('')
   const [lineas, setLineas] = useState([lineaVacia()])
 
@@ -234,7 +236,7 @@ export default function Compras() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · Compras</p>
           <h1 className="font-display text-3xl">Compras a proveedores</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Recepción de facturas. Cada línea entra al inventario por procesar_compra. La factura queda registrada y no se modifica.
+            Recepcion de facturas, cada línea entra al inventario por compras y la factura queda registrada y no se modifica
           </p>
         </div>
         {registrar ? (
@@ -279,8 +281,8 @@ export default function Compras() {
             <Buscador value={q} onChange={setQ} placeholder="Buscar factura, proveedor o sucursal…" />
           </div>
           <div className="grid gap-2 sm:grid-cols-4">
-            <select className={selectClass} aria-label="Sucursal" value={sucursalId} onChange={(e) => setSucursalId(e.target.value)}>
-              <option value="">Todas las sucursales</option>
+            <select className={selectClass} aria-label="Sucursal" value={sucursalId} disabled={local} onChange={(e) => setSucursalId(e.target.value)}>
+              {local ? null : <option value="">Todas las sucursales</option>}
               {sucursales.map((s) => (
                 <option key={field(s, 'ID')} value={field(s, 'ID')}>
                   {field(s, 'Nombre')}
@@ -301,7 +303,7 @@ export default function Compras() {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {compras.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No hay facturas con ese filtro.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No hay facturas con ese filtro</p>
           ) : (
             <Table>
               <TableHeader>
@@ -310,9 +312,9 @@ export default function Compras() {
                   <TableHead>Fecha</TableHead>
                   <TableHead>Proveedor</TableHead>
                   <TableHead>Sucursal</TableHead>
-                  <TableHead>Recibió</TableHead>
+                  <TableHead>Recibio</TableHead>
                   <TableHead>Total</TableHead>
-                  <TableHead>Líneas</TableHead>
+                  <TableHead>Lineas</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -359,9 +361,6 @@ export default function Compras() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Registrar compra</DialogTitle>
-            <DialogDescription>
-              La factura queda en F_Compras y cada línea llama a procesar_compra para subir el lote en la sucursal.
-            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
@@ -371,25 +370,32 @@ export default function Compras() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="formProveedor">Proveedor</Label>
-                <select id="formProveedor" className={selectClass} value={formProveedor} onChange={(e) => setFormProveedor(e.target.value)}>
-                  <option value="">Selecciona</option>
-                  {proveedores.map((p) => (
-                    <option key={field(p, 'ID')} value={field(p, 'ID')}>
-                      {field(p, 'Nombre')}
-                    </option>
-                  ))}
-                </select>
+                <SelectorBusqueda
+                  id="formProveedor"
+                  items={proveedores.map((p) => ({
+                    value: String(field(p, 'ID')),
+                    label: field(p, 'Nombre') || '',
+                    hint: field(p, 'NIT') || '',
+                  }))}
+                  value={formProveedor}
+                  onChange={setFormProveedor}
+                  placeholder="Buscar proveedor"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="formSucursal">Sucursal que recibe</Label>
-                <select id="formSucursal" className={selectClass} value={formSucursal} onChange={(e) => setFormSucursal(e.target.value)}>
-                  <option value="">Selecciona</option>
-                  {sucursales.map((s) => (
-                    <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                      {field(s, 'Nombre')}
-                    </option>
-                  ))}
-                </select>
+                <SelectorBusqueda
+                  id="formSucursal"
+                  items={sucursales.map((s) => ({
+                    value: String(field(s, 'ID')),
+                    label: field(s, 'Nombre') || '',
+                    hint: field(s, 'Codigo') || '',
+                  }))}
+                  value={formSucursal}
+                  onChange={setFormSucursal}
+                  placeholder="Buscar sucursal"
+                  disabled={local}
+                />
               </div>
             </div>
 
@@ -398,14 +404,16 @@ export default function Compras() {
                 <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-6">
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label>Medicamento</Label>
-                    <select className={selectClass} value={linea.medicamentoId} onChange={(e) => setLinea(index, 'medicamentoId', e.target.value)}>
-                      <option value="">Selecciona</option>
-                      {medicamentos.map((m) => (
-                        <option key={field(m, 'ID')} value={field(m, 'ID')}>
-                          {field(m, 'NOMBRE_MEDICAMENTO')}
-                        </option>
-                      ))}
-                    </select>
+                    <SelectorBusqueda
+                      items={medicamentos.map((m) => ({
+                        value: String(field(m, 'ID')),
+                        label: field(m, 'NOMBRE_MEDICAMENTO') || '',
+                        hint: field(m, 'CODIGO_BARRA') || '',
+                      }))}
+                      value={linea.medicamentoId}
+                      onChange={(id) => setLinea(index, 'medicamentoId', id)}
+                      placeholder="Buscar medicamento"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Cantidad</Label>
@@ -438,7 +446,7 @@ export default function Compras() {
                 </div>
               ))}
               <Button type="button" variant="outline" onClick={() => setLineas((prev) => [...prev, lineaVacia()])}>
-                Agregar línea
+                Agregar linea
               </Button>
             </div>
 
@@ -461,7 +469,7 @@ export default function Compras() {
           {detail ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Total {gtq(field(detail, 'TOTAL_COMPRA'))} · Recibió {field(detail, 'EMPLEADO_NOMBRE') || '—'}
+                Total {gtq(field(detail, 'TOTAL_COMPRA'))} · Recibio {field(detail, 'EMPLEADO_NOMBRE') || '—'}
               </p>
               <Table>
                 <TableHeader>

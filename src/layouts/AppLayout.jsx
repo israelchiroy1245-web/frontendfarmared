@@ -17,15 +17,15 @@ import {
   LogOut,
   Shield,
   ChevronDown,
-  KeyRound,
   ShoppingCart,
+  User,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { logout } from '@/lib/auth'
+import { getUser, logout } from '@/lib/auth'
 import { getRol, puedeModulo } from '@/lib/roles'
 
 const HOVER_OPEN_MS = 3000
@@ -39,13 +39,19 @@ const links = [
     icon: Package,
     modulo: 'inventario',
     children: [
+      { to: '/inventario/medicamentos', label: 'Medicamentos', icon: Package, modulo: 'medicamentos' },
       { to: '/inventario/compras', label: 'Compras', icon: ShoppingCart, modulo: 'compras' },
       { to: '/inventario/proveedores', label: 'Proveedores', icon: Truck, modulo: 'proveedores' },
     ],
   },
-  { to: '/ventas', label: 'Ventas', icon: Receipt, modulo: 'ventas' },
+  //{ to: '/ventas', label: 'Ventas', icon: Receipt, modulo: 'ventas' },
   { to: '/transferencias', label: 'Transferencias', icon: Truck, modulo: 'transferencias' },
-  { to: '/caja', label: 'Flujo de caja', icon: Wallet, modulo: 'caja' },
+  { to: '/caja', label: 'Flujo de caja', icon: Wallet, modulo: 'caja',
+    children: [
+      { to: '/ventas', label: 'Ventas', icon: Receipt, modulo: 'ventas' },
+    ]
+  },
+
   { to: '/activos', label: 'Activos fijos', icon: Landmark, modulo: 'activos' },
   { to: '/planilla', label: 'Planilla', icon: Users, modulo: 'planilla' },
   { to: '/entregas', label: 'Entregas', icon: Ambulance, modulo: 'entregas' },
@@ -58,9 +64,9 @@ const links = [
     modulo: 'usuarios',
     children: [
       { to: '/usuarios/roles', label: 'Roles', icon: Shield, modulo: 'roles' },
-      { to: '/usuarios/permisos', label: 'Permisos', icon: KeyRound, modulo: 'permisos' },
     ],
   },
+    
 ]
 
 function linksDelRol(rol) {
@@ -211,28 +217,56 @@ function NavItems({ onClick, onLogout }) {
 
 export default function AppLayout() {
   const [open, setOpen] = useState(false)
+  const [sidebar, setSidebar] = useState(true)
+  const [escritorio, setEscritorio] = useState(() => window.matchMedia('(min-width: 768px)').matches)
   const navigate = useNavigate()
   const rol = getRol()
+  const sesion = getUser()
+  const nombre = [sesion?.nombre || sesion?.NOMBRE, sesion?.apellido || sesion?.APELLIDO]
+    .filter(Boolean)
+    .join(' ')
 
-  function handleLogout() {
-    logout()
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 768px)')
+    const sync = () => setEscritorio(media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
+  }, [])
+
+  async function handleLogout() {
+    await logout()
     setOpen(false)
     toast.success('Sesión cerrada')
     navigate('/login', { replace: true })
   }
 
+  function toggleMenu() {
+    if (escritorio) {
+      setSidebar((visible) => !visible)
+      return
+    }
+    setOpen(true)
+  }
+
   return (
     <div className="flex min-h-full">
-      <aside className="hidden w-64 shrink-0 bg-sidebar p-5 md:block">
+      <aside className={`${sidebar ? 'md:block' : 'md:hidden'} hidden w-64 shrink-0 bg-sidebar p-5`}>
         <Brand />
         <NavItems onLogout={handleLogout} />
       </aside>
-
+     {/* Header */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b bg-card/80 px-4 py-3 backdrop-blur md:px-8">
           <div className="flex items-center gap-3">
             <Sheet open={open} onOpenChange={setOpen}>
-              <Button variant="outline" size="icon" className="md:hidden" onClick={() => setOpen(true)}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={escritorio ? (sidebar ? 'Ocultar menú' : 'Mostrar menú') : 'Abrir menú'}
+                aria-expanded={escritorio ? sidebar : open}
+                onClick={toggleMenu}
+              >
                 <Menu className="h-4 w-4" />
               </Button>
               <SheetContent className="bg-sidebar text-sidebar-foreground border-sidebar-border">
@@ -246,12 +280,17 @@ export default function AppLayout() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {rol ? <Badge variant="secondary">{rol}</Badge> : null}
-            <Badge variant="gold">Examen privado</Badge>
+            {rol ? (
+              <Badge variant="secondary">
+                <User className="h-3 w-3" />
+                {nombre ? `${nombre} · ${rol}` : rol}
+              </Badge>
+            ) : null}
+            {/*<Badge variant="gold">Examen privado</Badge>
             <Badge variant="ok" className="hidden sm:inline-flex">
               <ClipboardList className="mr-1 h-3 w-3" />
               Auditoría en vivo
-            </Badge>
+            </Badge> */}
           </div>
         </header>
         <main className="flex-1 p-4 md:p-8">

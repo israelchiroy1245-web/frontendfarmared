@@ -224,7 +224,7 @@ export default function Planilla() {
   }
 
   if (!ver) {
-    return <p className="text-destructive">Tu rol no puede consultar la planilla.</p>
+    return <p className="text-destructive">Tu rol no puede consultar la planilla</p>
   }
 
   if (loading && rows.length === 0 && !error) {
@@ -244,10 +244,10 @@ export default function Planilla() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Nómina · Planilla</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Nomina · Planilla</p>
           <h1 className="font-display text-3xl">Planilla mensual</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            IGSS laboral 4.83% del salario base. La bonificación de ley parte en Q 250. El total es salario más bonificaciones, menos descuentos e IGSS. Solo un registro pendiente se puede ajustar.
+            IGSS laboral 4.83% del salario base, la bonificacion de ley parte en Q 250 y el total es salario mas bonificaciones, menos descuentos e IGSS. Solo un registro pendiente se puede ajustar
           </p>
         </div>
         {admin ? (
@@ -373,7 +373,7 @@ export default function Planilla() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ajuste de {field(ajuste, 'EMPLEADO_NOMBRE') || 'planilla'}</DialogTitle>
-            <DialogDescription>El servidor recalcula IGSS y el total a pagar.</DialogDescription>
+            <DialogDescription>El servidor recalcula IGSS y el total a pagar</DialogDescription>
           </DialogHeader>
           <form onSubmit={guardarAjuste} className="space-y-3">
             <div className="space-y-1.5">
@@ -400,7 +400,7 @@ export default function Planilla() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Pagar a {field(pagar, 'EMPLEADO_NOMBRE') || 'empleado'}</DialogTitle>
-            <DialogDescription>El comprobante pasa a PAGADA y queda la fecha de pago.</DialogDescription>
+            <DialogDescription>El comprobante pasa a PAGADA y queda la fecha de pago</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setPagar(null)} disabled={saving}>Cancelar</Button>

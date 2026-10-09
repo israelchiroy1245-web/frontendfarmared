@@ -340,7 +340,7 @@ export default function Sucursales() {
         <div>
           <h1 className="font-display text-3xl">Sucursales</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Malls, farmacias tradicionales y stands en gasolinera en el interior del país.
+            Malls, farmacias tradicionales y stands en gasolinera en el interior del pais
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -394,7 +394,7 @@ export default function Sucursales() {
         <CardContent className="overflow-x-auto">
           {filtradas.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No hay sucursales que coincidan con la búsqueda.
+              No hay sucursales que coincidan con la búsqueda
             </p>
           ) : (
             <Table>
@@ -499,13 +499,13 @@ export default function Sucursales() {
         </CardContent>
       </Card>
 
-      {/* Crear / Editar */}
+      {/* Crearsucursales  / Editar */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{formMode === 'create' ? 'Nueva sucursal' : 'Editar sucursal'}</DialogTitle>
             <DialogDescription>
-              Campos obligatorios: código, nombre, tipo, departamento y municipio.
+              Campos obligatorios: código, nombre, tipo, departamento y municipio
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave} className="grid gap-3">

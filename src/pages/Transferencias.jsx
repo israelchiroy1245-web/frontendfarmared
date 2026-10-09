@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ArrowRightLeft, Eye, Plus, Trash2, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,8 +19,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import Buscador from '@/components/Buscador'
+import SelectorBusqueda from '@/components/SelectorBusqueda'
 import { api } from '@/lib/utils'
-import { getRol } from '@/lib/roles'
+import { getRol, sucursalAsignada, sucursalFijada } from '@/lib/roles'
 import { useDebounced } from '@/lib/useDebounced'
 
 function field(row, ...keys) {
@@ -45,12 +47,17 @@ function lineaVacia() {
 
 function puedeGestionar() {
   const rol = getRol()
-  return rol === 'ADMIN' || rol === 'QF'
+  return rol === 'ADMIN' || rol === 'QF' || rol === 'ENCARGADO'
 }
 
 function puedeRecibir() {
   const rol = getRol()
-  return rol === 'ADMIN' || rol === 'CAJERO'
+  return rol === 'ADMIN' || rol === 'QF' || rol === 'ENCARGADO'
+}
+
+function origenFijo() {
+  const rol = getRol()
+  return rol === 'ENCARGADO' || rol === 'QF'
 }
 
 function badgeEstado(estado) {
@@ -74,10 +81,13 @@ function etiquetaEstado(estado) {
 export default function Transferencias() {
   const gestionar = puedeGestionar()
   const recibir = puedeRecibir()
+  const local = sucursalFijada()
+  const fijaOrigen = origenFijo()
+  const [params] = useSearchParams()
   const [rows, setRows] = useState([])
   const [sucursales, setSucursales] = useState([])
   const [medicamentos, setMedicamentos] = useState([])
-  const [sucursalId, setSucursalId] = useState('')
+  const [sucursalId, setSucursalId] = useState(() => (sucursalFijada() ? sucursalAsignada() : ''))
   const [estado, setEstado] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
@@ -163,8 +173,25 @@ export default function Transferencias() {
     }
   }, [loadTransferencias])
 
+  useEffect(() => {
+    const destino = params.get('destinoId')
+    const med = params.get('medicamentoId')
+    if (!destino && !med) return
+    const origenQuery = params.get('origenId')
+    const propio = sucursalAsignada()
+    if (fijaOrigen) {
+      setOrigenId(propio || '')
+    } else if (origenQuery) {
+      setOrigenId(origenQuery)
+    }
+    if (destino) setDestinoId(destino)
+    if (med) setLineas([{ medicamentoId: String(med), cantidad: '6' }])
+    setObservacion('')
+    setFormOpen(true)
+  }, [params, fijaOrigen])
+
   function abrirAlta() {
-    setOrigenId(sucursalId)
+    setOrigenId(fijaOrigen ? sucursalAsignada() : sucursalId)
     setDestinoId('')
     setObservacion('')
     setLineas([lineaVacia()])
@@ -280,11 +307,11 @@ export default function Transferencias() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operación · Transferencias</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operacion · Transferencias</p>
           <h1 className="font-display text-3xl">Transferencias entre sucursales</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Solicitud → envío (descuenta origen por FEFO) → recepción (ingresa destino). Cancelación solo en estado
-            solicitada.
+            Solicitud → envío descuenta origen por FEFO → recepción ingresa a destino y cancelación solo en estado
+            solicitada
           </p>
         </div>
         {gestionar ? (
@@ -298,7 +325,7 @@ export default function Transferencias() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-            <CardDescription>En esta página</CardDescription>
+            <CardDescription>En esta pagina</CardDescription>
             <div className="rounded-md bg-secondary p-2 text-primary">
               <ArrowRightLeft className="h-4 w-4" />
             </div>
@@ -326,7 +353,7 @@ export default function Transferencias() {
           </CardHeader>
           <CardContent>
             <p className="font-display text-2xl font-semibold">{kpiTransito}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Esperando recepción</p>
+            <p className="mt-1 text-xs text-muted-foreground">Esperando recepcion</p>
           </CardContent>
         </Card>
       </div>
@@ -345,9 +372,10 @@ export default function Transferencias() {
               className={selectClass}
               aria-label="Sucursal"
               value={sucursalId}
+              disabled={local}
               onChange={(e) => setSucursalId(e.target.value)}
             >
-              <option value="">Todas las sucursales</option>
+              {local ? null : <option value="">Todas las sucursales</option>}
               {sucursales.map((s) => (
                 <option key={field(s, 'ID')} value={field(s, 'ID')}>
                   {field(s, 'Nombre')}
@@ -373,7 +401,7 @@ export default function Transferencias() {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {rows.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No hay transferencias con ese filtro.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No hay transferencias con ese filtro</p>
           ) : (
             <Table>
               <TableHeader>
@@ -442,47 +470,43 @@ export default function Transferencias() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Nueva solicitud de transferencia</DialogTitle>
-            <DialogDescription>
-              Queda en estado SOLICITADA. El inventario se mueve al enviar (origen) y al recibir (destino).
-            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="origenId">Sucursal origen</Label>
-                <select
+                <SelectorBusqueda
                   id="origenId"
-                  className={selectClass}
+                  items={sucursales.map((s) => ({
+                    value: String(field(s, 'ID')),
+                    label: field(s, 'Nombre') || '',
+                    hint: field(s, 'Codigo') || '',
+                  }))}
                   value={origenId}
-                  onChange={(e) => setOrigenId(e.target.value)}
-                >
-                  <option value="">Selecciona</option>
-                  {sucursales.map((s) => (
-                    <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                      {field(s, 'Nombre')}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setOrigenId}
+                  placeholder="Buscar sucursal origen"
+                  disabled={fijaOrigen}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="destinoId">Sucursal destino</Label>
-                <select
+                <SelectorBusqueda
                   id="destinoId"
-                  className={selectClass}
+                  items={sucursales
+                    .filter((s) => !fijaOrigen || String(field(s, 'ID')) !== sucursalAsignada())
+                    .map((s) => ({
+                      value: String(field(s, 'ID')),
+                      label: field(s, 'Nombre') || '',
+                      hint: field(s, 'Codigo') || '',
+                    }))}
                   value={destinoId}
-                  onChange={(e) => setDestinoId(e.target.value)}
-                >
-                  <option value="">Selecciona</option>
-                  {sucursales.map((s) => (
-                    <option key={field(s, 'ID')} value={field(s, 'ID')}>
-                      {field(s, 'Nombre')}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setDestinoId}
+                  placeholder="Buscar sucursal destino"
+                />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="observacion">Observación</Label>
+              <Label htmlFor="observacion">Observacion</Label>
               <Input
                 id="observacion"
                 value={observacion}
@@ -496,18 +520,16 @@ export default function Transferencias() {
                 <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4">
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label>Medicamento</Label>
-                    <select
-                      className={selectClass}
+                    <SelectorBusqueda
+                      items={medicamentos.map((m) => ({
+                        value: String(field(m, 'ID')),
+                        label: field(m, 'NOMBRE_MEDICAMENTO') || '',
+                        hint: field(m, 'CODIGO_BARRA') || '',
+                      }))}
                       value={linea.medicamentoId}
-                      onChange={(e) => setLinea(index, 'medicamentoId', e.target.value)}
-                    >
-                      <option value="">Selecciona</option>
-                      {medicamentos.map((m) => (
-                        <option key={field(m, 'ID')} value={field(m, 'ID')}>
-                          {field(m, 'NOMBRE_MEDICAMENTO')}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(id) => setLinea(index, 'medicamentoId', id)}
+                      placeholder="Buscar medicamento"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Cantidad</Label>
@@ -533,7 +555,7 @@ export default function Transferencias() {
                 </div>
               ))}
               <Button type="button" variant="outline" onClick={() => setLineas((prev) => [...prev, lineaVacia()])}>
-                Agregar línea
+                Agregar linea
               </Button>
             </div>
 
@@ -562,7 +584,7 @@ export default function Transferencias() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={badgeEstado(estadoDetalle)}>{etiquetaEstado(estadoDetalle)}</Badge>
                 <span className="text-sm text-muted-foreground">
-                  Solicitó {field(detail, 'SOLICITADO_POR_NOMBRE') || '—'} · {field(detail, 'FECHA_SOLICITUD') || '—'}
+                  Solicito {field(detail, 'SOLICITADO_POR_NOMBRE') || '—'} · {field(detail, 'FECHA_SOLICITUD') || '—'}
                 </span>
               </div>
               {field(detail, 'OBSERVACION') ? (
@@ -570,11 +592,11 @@ export default function Transferencias() {
               ) : null}
               <div className="grid gap-2 text-sm sm:grid-cols-2">
                 <p>
-                  <span className="text-muted-foreground">Envío: </span>
+                  <span className="text-muted-foreground">Envio: </span>
                   {field(detail, 'FECHA_ENVIO') || '—'}
                 </p>
                 <p>
-                  <span className="text-muted-foreground">Recepción: </span>
+                  <span className="text-muted-foreground">Recepcion: </span>
                   {field(detail, 'FECHA_RECEPCION') || '—'}
                 </p>
               </div>
@@ -583,7 +605,7 @@ export default function Transferencias() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Medicamento</TableHead>
-                    <TableHead>Código</TableHead>
+                    <TableHead>Codigo</TableHead>
                     <TableHead>Cant.</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -598,9 +620,19 @@ export default function Transferencias() {
                 </TableBody>
               </Table>
 
-              {(gestionar && estadoDetalle === 'SOLICITADA') || (recibir && estadoDetalle === 'EN_TRANSITO') ? (
+              {(() => {
+                const origenDetalle = String(field(detail, 'SUCURSAL_ORIGEN_ID') || '')
+                const destinoDetalle = String(field(detail, 'SUCURSAL_DESTINO_ID') || '')
+                const mia = sucursalAsignada()
+                const esAdmin = getRol() === 'ADMIN'
+                const puedeEnviarEsta = gestionar && (esAdmin || origenDetalle === mia)
+                const puedeRecibirEsta = recibir && (esAdmin || destinoDetalle === mia)
+                if (!(puedeEnviarEsta && estadoDetalle === 'SOLICITADA') && !(puedeRecibirEsta && estadoDetalle === 'EN_TRANSITO')) {
+                  return null
+                }
+                return (
                 <DialogFooter className="gap-2 sm:justify-start">
-                  {gestionar && estadoDetalle === 'SOLICITADA' ? (
+                  {puedeEnviarEsta && estadoDetalle === 'SOLICITADA' ? (
                     <>
                       <Button disabled={acting} onClick={() => handleAccion('enviar')}>
                         {acting ? 'Procesando…' : 'Enviar (descontar origen)'}
@@ -610,13 +642,14 @@ export default function Transferencias() {
                       </Button>
                     </>
                   ) : null}
-                  {recibir && estadoDetalle === 'EN_TRANSITO' ? (
+                  {puedeRecibirEsta && estadoDetalle === 'EN_TRANSITO' ? (
                     <Button disabled={acting} onClick={() => handleAccion('recibir')}>
                       {acting ? 'Procesando…' : 'Recibir en destino'}
                     </Button>
                   ) : null}
                 </DialogFooter>
-              ) : null}
+                )
+              })()}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">Cargando…</p>
