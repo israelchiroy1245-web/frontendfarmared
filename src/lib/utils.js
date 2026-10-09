@@ -57,11 +57,22 @@ function irAlLogin() {
   }
 }
 
+function urlApi(path, query) {
+  const base = import.meta.env.VITE_API_URL
+  const url = new URL(path, base || window.location.origin)
+  if (query) {
+    Object.entries(query).forEach(([k, v]) => {
+      if (v != null && v !== '') url.searchParams.set(k, v)
+    })
+  }
+  return base ? url.toString() : url.pathname + url.search
+}
+
 function refrescarAccess() {
   const refreshToken = getRefreshToken()
   if (!refreshToken) return Promise.resolve(false)
   if (!refrescoEnCurso) {
-    refrescoEnCurso = fetch('/api/auth/refresh', {
+    refrescoEnCurso = fetch(urlApi('/api/auth/refresh'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
@@ -82,15 +93,8 @@ function refrescarAccess() {
 
 export async function api(path, options = {}, reintento = false) {
   const { method = 'GET', body, query, headers } = options
-  const url = new URL(path, window.location.origin)
-  if (query) {
-    Object.entries(query).forEach(([k, v]) => {
-      if (v != null && v !== '') url.searchParams.set(k, v)
-    })
-  }
-
   const token = getToken()
-  const res = await fetch(url.pathname + url.search, {
+  const res = await fetch(urlApi(path, query), {
     method,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
