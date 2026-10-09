@@ -169,7 +169,7 @@ export default function Pedidos() {
   }
 
   if (!ver) {
-    return <p className="text-destructive">Tu rol no puede ver las entregas.</p>
+    return <p className="text-destructive">Tu rol no puede ver las entregas</p>
   }
 
   if (loading && rows.length === 0 && !error) {
@@ -190,10 +190,10 @@ export default function Pedidos() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Logística · Entregas</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Logistica · Entregas</p>
         <h1 className="font-display text-3xl">Entregas a domicilio</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">
-          El pedido avanza de confirmado a preparando, en ruta y entregado. Al entregar se sella la fecha. Un pedido entregado o cancelado ya no cambia.
+          El pedido avanza de confirmado a preparando, en ruta y entregado y al entregar se sella la fecha y un pedido entregado o cancelado ya no cambia
         </p>
       </div>
 

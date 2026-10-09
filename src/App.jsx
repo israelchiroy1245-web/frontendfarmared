@@ -6,7 +6,6 @@ import Dashboard from './pages/Dashboard'
 import Usuarios from './pages/Usuarios'
 import Sucursales from './pages/Sucursales'
 import Roles from './pages/Roles'
-import Permisos from './pages/Permisos'
 import Inventario from './pages/Inventario'
 import Compras from './pages/Compras'
 import Proveedores from './pages/Proveedores'
@@ -65,7 +64,6 @@ export default function App() {
             <Route path="caja" element={<Guard modulo="caja"><Caja /></Guard>} />
             <Route path="usuarios" element={<Guard modulo="usuarios"><Usuarios /></Guard>} />
             <Route path="usuarios/roles" element={<Guard modulo="roles"><Roles /></Guard>} />
-            <Route path="usuarios/permisos" element={<Guard modulo="permisos"><Permisos /></Guard>} />
             <Route path="activos" element={<Guard modulo="activos"><Activos /></Guard>} />
             <Route path="planilla" element={<Guard modulo="planilla"><Planilla /></Guard>} />
             <Route path="call-center" element={<Guard modulo="callCenter"><CallCenter /></Guard>} />

@@ -18,7 +18,6 @@ export const MODULOS = {
   reportes: ['ADMIN', 'QF', 'AUDITOR'],
   usuarios: ['ADMIN'],
   roles: ['ADMIN'],
-  permisos: ['ADMIN'],
 }
 
 const INICIO = {

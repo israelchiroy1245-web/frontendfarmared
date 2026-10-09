@@ -338,10 +338,10 @@ export default function Reportes() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Dirección · Reportes</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Direccion · Reportes</p>
           <h1 className="font-display text-3xl">Reportes gerenciales</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            El consolidado suma inventario a costo y activos en libros. El tablero del inicio sigue en su propia pantalla.
+            El consolidado suma inventario a costo y activos en libros y el tablero del inicio sigue en su propia pantalla
           </p>
         </div>
         {permitido ? (
@@ -396,8 +396,8 @@ export default function Reportes() {
               </select>
             ) : null}
             {reporte === 'activos' ? (
-              <select className={selectClass} aria-label="Categoría" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
-                <option value="">Todas las categorías</option>
+              <select className={selectClass} aria-label="Categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+                <option value="">Todas las categorias</option>
                 {CATEGORIAS_ACTIVO.map((item) => (
                   <option key={item} value={item}>{item}</option>
                 ))}
@@ -429,7 +429,7 @@ export default function Reportes() {
                     <option key={item} value={item}>{item}</option>
                   ))}
                 </select>
-                <select className={selectClass} aria-label="Acción" value={accion} onChange={(e) => setAccion(e.target.value)}>
+                <select className={selectClass} aria-label="Accion" value={accion} onChange={(e) => setAccion(e.target.value)}>
                   <option value="">Todas las acciones</option>
                   {ACCIONES_AUDITORIA.map((item) => (
                     <option key={item} value={item}>{item}</option>
@@ -447,7 +447,7 @@ export default function Reportes() {
               <div className="grid gap-3 sm:grid-cols-3">
                 <p className="text-sm">Patrimonio {gtq(patrimonio.valorConsolidadoGTQ)}</p>
                 <p className="text-sm">Referencia US$ {Number(patrimonio.valorConsolidadoUSD || 0).toLocaleString('en-US')}</p>
-                <p className="text-sm">Nómina {gtq(patrimonio.planillaMensual)} · {patrimonio.ultimoPeriodoPlanilla}</p>
+                <p className="text-sm">Nomina {gtq(patrimonio.planillaMensual)} · {patrimonio.ultimoPeriodoPlanilla}</p>
                 <p className="text-sm">Inventario a costo {gtq(patrimonio.inventarioCosto)}</p>
                 <p className="text-sm">Activos en libros {gtq(patrimonio.activosFijosLibros)}</p>
                 <p className="text-sm">Tipo de cambio {patrimonio.tasaCambioReferencia}</p>
@@ -487,7 +487,7 @@ export default function Reportes() {
                 {total} lotes en {extra?.filtroDias ?? dias} días · riesgo {gtq(extra?.valorEnRiesgo)}
               </p>
               <TablaSimple
-                headers={['Sucursal', 'Medicamento', 'Lote', 'Vence', 'Días', 'Cant.', 'Costo']}
+                headers={['Sucursal', 'Medicamento', 'Lote', 'Vence', 'Dias', 'Cant.', 'Costo']}
                 rows={filas.map((row) => [
                   field(row, 'SUCURSAL_NOMBRE'),
                   field(row, 'MEDICAMENTO_NOMBRE'),
@@ -540,7 +540,7 @@ export default function Reportes() {
                 {datos?.totalActivos ?? 0} activos · adquisición {gtq(datos?.totalAdquisicion)} · libros {gtq(datos?.totalValorLibros)}
               </p>
               <TablaSimple
-                headers={['Sucursal', 'Categoría', 'Activos', 'Adquisición', 'Depreciación', 'Libros']}
+                headers={['Sucursal', 'Categoria', 'Activos', 'Adquisicion', 'Depreciacion', 'Libros']}
                 rows={activos.map((row) => [
                   field(row, 'SUCURSAL_NOMBRE'),
                   field(row, 'CATEGORIA'),

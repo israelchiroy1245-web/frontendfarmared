@@ -31,7 +31,7 @@ import { api, fmtDate, gtq } from '@/lib/utils'
 import { useDebounced } from '@/lib/useDebounced'
 import Paginacion from '@/components/Paginacion'
 
-/** Oracle puede devolver columnas en mayúsculas o como en el SELECT. */
+/** Oracle puede devolver columnas en mayusculas o como en el SELECT. */
 function field(row, ...keys) {
   if (!row) return null
   for (const key of keys) {
@@ -398,7 +398,7 @@ export default function Usuarios() {
         <div>
           <h1 className="font-display text-3xl">Usuarios</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Personal de la red FarmaRed: cuentas, roles, cargo y sucursal asignada.
+            Personal de la red FarmaRed: cuentas, roles, cargo y sucursal asignada
           </p>
         </div>
         <Button onClick={openCreate} className="gap-2">
@@ -412,15 +412,15 @@ export default function Usuarios() {
           icon={Users}
           label="Usuarios registrados"
           value={stats.total}
-          hint={sucursalFiltro ? 'Empleados de la sucursal filtrada' : 'Total en F_Usuarios'}
+          hint={sucursalFiltro ? 'Empleados de la sucursal filtrada' : 'Total de usuarios registrados'}
         />
         <Kpi icon={UserCheck} label="Activos" value={stats.activos} hint={`${stats.inactivos} inactivos`} />
-        <Kpi icon={Shield} label="Roles distintos" value={stats.roles} hint="Catálogo de F_Roles" />
+        <Kpi icon={Shield} label="Roles distintos" value={stats.roles} hint="Catalogo de roles" />
         <Kpi
           icon={Building2}
           label="Con sucursal"
           value={stats.conSucursal}
-          hint="Empleados vinculados a F_Sucursal"
+          hint="Empleados vinculados a sucursal"
         />
       </div>
 
@@ -720,7 +720,6 @@ export default function Usuarios() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Detalle de usuario</DialogTitle>
-            <DialogDescription>GET /api/usuarios/:id</DialogDescription>
           </DialogHeader>
           {detailLoading || !detail ? (
             <div className="space-y-2">
@@ -745,7 +744,7 @@ export default function Usuarios() {
                 <dd className="text-right">{field(detail, 'DPI') || '—'}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Teléfono</dt>
+                <dt className="text-muted-foreground">Telefono</dt>
                 <dd className="text-right">{field(detail, 'Telefono') || '—'}</dd>
               </div>
               <div className="flex justify-between gap-4">
@@ -793,7 +792,7 @@ export default function Usuarios() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Cambiar contraseña</DialogTitle>
-            <DialogDescription>Mínimo 6 caracteres. Se envía con PATCH al backend.</DialogDescription>
+            <DialogDescription>Minimo 6 caracteres</DialogDescription>
           </DialogHeader>
           <form onSubmit={handlePassword} className="grid gap-3">
             <Field id="nuevaPassword" label="Nueva contraseña">
@@ -824,7 +823,7 @@ export default function Usuarios() {
           <DialogHeader>
             <DialogTitle>Desactivar usuario</DialogTitle>
             <DialogDescription>
-              Baja lógica: el usuario (y su empleado) pasan a estado INACTIVO. No se elimina el registro.
+              Baja logica: el usuario y su empleado pasan a estado INACTIVO y no se elimina el registro
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">

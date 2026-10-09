@@ -22,13 +22,19 @@ export function fmtDate(value) {
 }
 
 export function downloadCsv(filename, rows, columns) {
-  const esc = (v) => {
-    const s = v == null ? '' : String(v)
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  const celda = (v) => {
+    if (v == null || v === '') return ''
+    if (typeof v === 'number' && Number.isFinite(v)) return String(v).replace('.', ',')
+    const s = String(v)
+    if (/^-?\d+\.\d+$/.test(s)) return s.replace('.', ',')
+    return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  const header = columns.map((c) => esc(c.label)).join(',')
-  const body = rows.map((r) => columns.map((c) => esc(typeof c.value === 'function' ? c.value(r) : r[c.value])).join(',')).join('\n')
-  const blob = new Blob([`\uFEFF${header}\n${body}`], { type: 'text/csv;charset=utf-8' })
+  const linea = (vals) => vals.map(celda).join(';')
+  const header = linea(columns.map((c) => c.label))
+  const body = rows
+    .map((r) => linea(columns.map((c) => (typeof c.value === 'function' ? c.value(r) : r[c.value]))))
+    .join('\r\n')
+  const blob = new Blob([`\uFEFF${header}\r\n${body}`], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

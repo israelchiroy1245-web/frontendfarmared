@@ -140,7 +140,7 @@ export default function CallCenter() {
       return
     }
     if (!nombre.trim() || !direccion.trim()) {
-      toast.error('Nombre y dirección de entrega son obligatorios')
+      toast.error('Nombre y direccion de entrega son obligatorios')
       return
     }
     setGuardando(true)
@@ -174,7 +174,7 @@ export default function CallCenter() {
   }
 
   if (!consultar) {
-    return <p className="text-destructive">Tu rol no puede usar el call center.</p>
+    return <p className="text-destructive">Tu rol no puede usar el call center</p>
   }
 
   const opciones = resultado?.opciones || []
@@ -182,10 +182,10 @@ export default function CallCenter() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Logística · Call center</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Logistica · Call center</p>
         <h1 className="font-display text-3xl">Call center</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">
-          La consulta elige la sucursal más cercana con stock completo. Si no hay coordenadas, usa el departamento. El pedido nace confirmado.
+          La consulta elige la sucursal mas cercana con stock completo y si no hay coordenadas, usa el departamento
         </p>
       </div>
 
@@ -195,7 +195,7 @@ export default function CallCenter() {
             <Headset className="h-4 w-4" />
             Consulta de cobertura
           </CardTitle>
-          <CardDescription>Distancia en kilómetros y tiempo estimado de entrega.</CardDescription>
+          <CardDescription>Distancia en kilometros y tiempo estimado de entrega</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={consultarCobertura} className="space-y-4">
@@ -322,7 +322,7 @@ export default function CallCenter() {
                 <Input id="nit" value={nit} onChange={(e) => setNit(e.target.value)} />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="dir">Dirección de entrega</Label>
+                <Label htmlFor="dir">Direccion de entrega</Label>
                 <Input id="dir" value={direccion} onChange={(e) => setDireccion(e.target.value)} />
               </div>
               <div className="space-y-1.5">

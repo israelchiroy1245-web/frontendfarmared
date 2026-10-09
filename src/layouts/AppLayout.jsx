@@ -17,7 +17,6 @@ import {
   LogOut,
   Shield,
   ChevronDown,
-  KeyRound,
   ShoppingCart,
   User,
 } from 'lucide-react'
@@ -65,7 +64,6 @@ const links = [
     modulo: 'usuarios',
     children: [
       { to: '/usuarios/roles', label: 'Roles', icon: Shield, modulo: 'roles' },
-      { to: '/usuarios/permisos', label: 'Permisos', icon: KeyRound, modulo: 'permisos' },
     ],
   },
     

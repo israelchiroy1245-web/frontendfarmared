@@ -52,7 +52,6 @@ function isProtegido(nombre) {
 const emptyForm = {
   nombre: '',
   descripcion: '',
-  permisos: [],
 }
 
 function Field({ id, label, children }) {
@@ -182,17 +181,6 @@ export default function Roles() {
     permisos: catalogoPermisos.length,
   }
 
-  function togglePermiso(id) {
-    const n = Number(id)
-    setForm((prev) => {
-      const has = prev.permisos.includes(n)
-      return {
-        ...prev,
-        permisos: has ? prev.permisos.filter((p) => p !== n) : [...prev.permisos, n],
-      }
-    })
-  }
-
   function openCreate() {
     setFormMode('create')
     setEditId(null)
@@ -207,13 +195,9 @@ export default function Roles() {
     try {
       const data = await api(`/api/roles/${id}`)
       const rol = data.rol
-      const permisos = Array.isArray(rol?.permisos)
-        ? rol.permisos.map((p) => Number(field(p, 'ID'))).filter((n) => !Number.isNaN(n))
-        : []
       setForm({
         nombre: field(rol, 'Nombre') || '',
         descripcion: field(rol, 'Descripcion') || '',
-        permisos,
       })
       setFormOpen(true)
     } catch (e) {
@@ -259,7 +243,6 @@ export default function Roles() {
           body: {
             nombre,
             descripcion: form.descripcion.trim() || null,
-            permisos: form.permisos,
           },
         })
         toast.success('Rol creado exitosamente')
@@ -270,10 +253,6 @@ export default function Roles() {
             nombre,
             descripcion: form.descripcion.trim() || null,
           },
-        })
-        await api(`/api/roles/${editId}/permisos`, {
-          method: 'PUT',
-          body: { permisos: form.permisos },
         })
         toast.success('Rol actualizado exitosamente')
       }
@@ -318,7 +297,7 @@ export default function Roles() {
           </p>
           <h1 className="font-display text-3xl">Roles</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Catálogo F_Roles y permisos en F_rol_permiso. Los roles del sistema no se pueden eliminar.
+            Catálogo del modelo. El acceso lo decide el rol. 
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -328,12 +307,6 @@ export default function Roles() {
           >
             Ver usuarios
           </Link>
-          <Link
-            to="/usuarios/permisos"
-            className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-sm font-medium hover:bg-muted"
-          >
-            Ver permisos
-          </Link>
           <Button onClick={openCreate} className="gap-2">
             <Plus className="h-4 w-4" />
             Nuevo rol
@@ -342,16 +315,16 @@ export default function Roles() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Shield} label="Roles" value={stats.total} hint="Registros en F_Roles" />
+        <Kpi icon={Shield} label="Roles" value={stats.total} hint="Registros en roles" />
         <Kpi icon={Users} label="Asignaciones" value={stats.usuariosAsignados} hint="Usuarios con rol" />
         <Kpi icon={ShieldAlert} label="Protegidos" value={stats.protegidos} hint="ADMIN, CAJERO, etc." />
-        <Kpi icon={Shield} label="Permisos" value={stats.permisos} hint="Catálogo F_Permisos" />
+        <Kpi icon={Shield} label="Permisos" value={stats.permisos} hint="Catalogo de permisos" />
       </div>
 
       <Card>
         <CardHeader className="gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <CardTitle>Catálogo de roles</CardTitle>
+            <CardTitle>Catalogo de roles</CardTitle>
             <CardDescription>
               {total} registros
             </CardDescription>
@@ -360,13 +333,13 @@ export default function Roles() {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {filtrados.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No hay roles que coincidan.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No hay roles que coincidan</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Rol</TableHead>
-                  <TableHead>Descripción</TableHead>
+                  <TableHead>Descripcion</TableHead>
                   <TableHead>Usuarios</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -439,9 +412,6 @@ export default function Roles() {
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{formMode === 'create' ? 'Nuevo rol' : 'Editar rol'}</DialogTitle>
-            <DialogDescription>
-              El nombre se guarda en mayúsculas. Marca los permisos a asignar en F_rol_permiso.
-            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave} className="grid gap-3">
             <Field id="nombre" label="Nombre *">
@@ -453,41 +423,14 @@ export default function Roles() {
                 required
               />
             </Field>
-            <Field id="descripcion" label="Descripción">
+            <Field id="descripcion" label="Descripcion">
               <Input
                 id="descripcion"
                 value={form.descripcion}
                 onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))}
-                placeholder="Qué puede hacer este rol"
+                placeholder="Que puede hacer este rol"
               />
             </Field>
-
-            <div className="space-y-2">
-              <Label>Permisos</Label>
-              {catalogoPermisos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay permisos en el catálogo.</p>
-              ) : (
-                <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
-                  {catalogoPermisos.map((p) => {
-                    const id = Number(field(p, 'ID'))
-                    const nombre = field(p, 'Nombre') || `Permiso ${id}`
-                    const checked = form.permisos.includes(id)
-                    return (
-                      <label key={id} className="flex cursor-pointer items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="size-4 rounded border-input"
-                          checked={checked}
-                          onChange={() => togglePermiso(id)}
-                        />
-                        <span>{nombre}</span>
-                      </label>
-                    )
-                  })}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">{form.permisos.length} permiso(s) seleccionados</p>
-            </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
@@ -506,7 +449,6 @@ export default function Roles() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Detalle de rol</DialogTitle>
-            <DialogDescription>GET /api/roles/:id</DialogDescription>
           </DialogHeader>
           {detailLoading || !detail ? (
             <div className="space-y-2">
@@ -521,11 +463,11 @@ export default function Roles() {
                 <span className="font-medium">{field(detail, 'Nombre')}</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Descripción</span>
+                <span className="text-muted-foreground">Descripcion</span>
                 <span className="max-w-[60%] text-right">{field(detail, 'Descripcion') || '—'}</span>
               </div>
               <div>
-                <p className="mb-2 text-muted-foreground">Permisos</p>
+                <p className="mb-2 text-muted-foreground">Catálogo del modelo. El acceso lo decide el rol.</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(detail.permisos || []).length === 0 ? (
                     <span className="text-muted-foreground">Sin permisos asignados</span>
@@ -554,7 +496,7 @@ export default function Roles() {
           <DialogHeader>
             <DialogTitle>Eliminar rol</DialogTitle>
             <DialogDescription>
-              Solo se puede eliminar si no es un rol del sistema y no tiene usuarios asignados.
+              Solo se puede eliminar si no es un rol del sistema y no tiene usuarios asignados
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">
